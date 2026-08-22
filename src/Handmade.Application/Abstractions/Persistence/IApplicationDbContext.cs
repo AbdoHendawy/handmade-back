@@ -1,4 +1,5 @@
 using Handmade.Domain.Identity;
+using Handmade.Domain.Seller;
 using Microsoft.EntityFrameworkCore;
 
 namespace Handmade.Application.Abstractions.Persistence;
@@ -14,6 +15,10 @@ public interface IApplicationDbContext
     DbSet<ExternalLogin> ExternalLogins { get; }
 
     DbSet<RefreshToken> RefreshTokens { get; }
+
+    DbSet<SellerApplication> SellerApplications { get; }
+
+    DbSet<SellerProfile> SellerProfiles { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

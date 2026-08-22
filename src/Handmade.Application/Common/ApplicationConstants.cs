@@ -23,5 +23,15 @@ public static class ApiRoutes
 
     public const string Admin = $"{V1}/admin";
 
+    public const string Seller = $"{V1}/seller";
+
+    public const string SellerApplications = $"{Seller}/applications";
+
+    public const string SellerProfile = $"{Seller}/profile";
+
+    public const string AdminSellerApplications = $"{Admin}/seller-applications";
+
+    public const string AdminSellers = $"{Admin}/sellers";
+
     public const string Status = $"{V1}/[controller]";
 }

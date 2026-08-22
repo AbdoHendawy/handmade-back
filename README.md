@@ -2,7 +2,7 @@
 
 ASP.NET Core backend for the **Handmade** Art & Crafts Gallery platform.
 
-This repository is a **modular monolith** with Sprint 1 foundation and **Sprint 2 Identity & Authentication** (email/Google login, JWT, refresh rotation, roles, admin force-logout).
+This repository is a **modular monolith** with Sprint 1 foundation, **Sprint 2 Identity & Authentication**, and **Sprint 3 Seller** (applications, admin review, seller profile, suspension).
 
 ## Architecture
 
@@ -14,12 +14,12 @@ Domain ← Application ← Infrastructure
 
 | Project | Responsibility |
 |---|---|
-| `Handmade.Domain` | Entity bases, Identity aggregates, domain exceptions |
-| `Handmade.Application` | Auth use cases, validation, ports |
+| `Handmade.Domain` | Entity bases, Identity and Seller aggregates, domain exceptions |
+| `Handmade.Application` | Auth and Seller use cases, validation, ports |
 | `Handmade.Infrastructure` | EF Core, PostgreSQL, Argon2, JWT, Google validator, email |
 | `Handmade.Api` | HTTP, auth middleware, OpenAPI, health, CORS |
 
-See [docs/architecture.md](docs/architecture.md), [docs/identity.md](docs/identity.md), and [docs/architecture-decisions.md](docs/architecture-decisions.md).
+See [docs/architecture.md](docs/architecture.md), [docs/identity.md](docs/identity.md), [docs/seller.md](docs/seller.md), and [docs/architecture-decisions.md](docs/architecture-decisions.md).
 
 ## Prerequisites
 
@@ -50,7 +50,8 @@ dotnet run --project src/Handmade.Api
 
 - API (HTTP): http://localhost:5159
 - API (HTTPS): https://localhost:7152
-- Scalar (OpenAPI UI): http://localhost:5159/scalar
+- Swagger UI: http://localhost:5159/swagger
+- Scalar: http://localhost:5159/scalar
 - OpenAPI document: http://localhost:5159/openapi/v1.json
 - Liveness: http://localhost:5159/health
 - Readiness (DB): http://localhost:5159/health/ready
@@ -79,7 +80,7 @@ dotnet ef database update \
   --startup-project src/Handmade.Api
 ```
 
-There is no business schema yet. The first real migration will land with Sprint 2 entities. See [docs/database.md](docs/database.md).
+There is no empty schema. Sprint 2 added Identity; Sprint 3 added Seller tables. See [docs/database.md](docs/database.md).
 
 ## Environment configuration
 
@@ -116,6 +117,7 @@ Handmade.sln
 - [Architecture](docs/architecture.md)
 - [Architecture decisions](docs/architecture-decisions.md)
 - [Identity](docs/identity.md)
+- [Seller](docs/seller.md)
 - [Development](docs/development.md)
 - [Database](docs/database.md)
 - [API guidelines](docs/api-guidelines.md)

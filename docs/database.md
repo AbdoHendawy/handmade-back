@@ -64,10 +64,13 @@ dotnet ef database update --project src/Handmade.Infrastructure --startup-projec
 
 ## Current schema
 
-No business tables yet. An empty model is intentional until Sprint 2. Verify tooling with:
+Identity tables from Sprint 2 (`users`, `roles`, `user_roles`, `external_logins`, `refresh_tokens`).
 
-```bash
-dotnet ef migrations add FoundationBaseline --project src/Handmade.Infrastructure --startup-project src/Handmade.Api --output-dir Persistence/Migrations
-```
+Seller tables from Sprint 3:
 
-If the migration is empty, it can be removed; the important part is that the pipeline works.
+- `seller_applications` — application history; partial unique index one Pending per user; FKs to `users` (Restrict)
+- `seller_profiles` — at most one per user (`user_id` UNIQUE); FK to the source application (Restrict)
+
+Optimistic concurrency uses PostgreSQL `xmin` (EF rowversion). It is a system column; do not treat it as application data.
+
+See [seller.md](seller.md).

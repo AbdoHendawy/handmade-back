@@ -6,14 +6,15 @@
 /api/v1/
 ```
 
-Future resources (not implemented yet):
+Future resources (not all implemented yet):
 
 - `/api/v1/auth`
+- `/api/v1/seller/applications`
+- `/api/v1/seller/profile`
+- `/api/v1/admin/seller-applications`
+- `/api/v1/admin/sellers`
 - `/api/v1/artworks`
-- `/api/v1/makers`
 - `/api/v1/categories`
-- `/api/v1/tags`
-- `/api/v1/collections`
 
 ## Versioning
 
@@ -62,9 +63,9 @@ Errors use **RFC 7807 ProblemDetails** (`application/problem+json` style payload
 - Prefer omitting nulls in JSON (`WhenWritingNull`)
 - Required fields enforced by FluentValidation in Application
 
-## Pagination (future contract)
+## Pagination
 
-When list endpoints arrive, use a consistent shape:
+Admin collection endpoints use `PagingQuery` / `PagedResult<T>`:
 
 ```json
 {
@@ -75,12 +76,23 @@ When list endpoints arrive, use a consistent shape:
 }
 ```
 
-Query: `?page=1&pageSize=20&sort=-createdAt`. Do not invent per-endpoint pagination shapes.
+Query: `?page=1&pageSize=20`. Default page size 20, maximum 100. Do not invent per-endpoint pagination shapes.
 
 ## Sorting / filtering (future)
 
 - `sort` comma-separated fields; prefix `-` for descending
 - Filters as explicit query parameters (`categoryId`, `tag`, `q`) — document per endpoint
+
+## Sparse fieldsets / `ignoreAttr`
+
+Do **not** add a global GET query such as `ignoreAttr` or `fields` on every endpoint.
+
+Current DTOs are small; omitting a few timestamps does not improve frontend performance compared with TLS, JWT, and RTT. A global exclude/allow list also weakens OpenAPI and generated TypeScript types.
+
+When list payloads grow (catalog, products):
+
+- Prefer a **list DTO** vs **detail DTO** (summary card on collections, full resource on `GET by id`).
+- Add `?fields=` (allowlist) only if one collection URL must serve both a table and a tiny dropdown. Unknown field names must return 400. Never use field filters on POST/PUT, and never as a security mechanism.
 
 ## Validation errors
 

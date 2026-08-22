@@ -112,7 +112,7 @@ public static class ServiceCollectionExtensions
                 {
                     Title = ApplicationConstants.ApiName,
                     Version = "v1",
-                    Description = "Handmade Art & Crafts Gallery API with Identity & Authentication."
+                    Description = "Handmade Art & Crafts Gallery API with Identity, Authentication, and Seller onboarding. Use Authorize with a JWT from POST /api/v1/auth/login or /register."
                 };
 
                 document.Components ??= new OpenApiComponents();
@@ -122,8 +122,14 @@ public static class ServiceCollectionExtensions
                     Type = SecuritySchemeType.Http,
                     Scheme = "bearer",
                     BearerFormat = "JWT",
-                    Description = $"Paste a JWT access token from /{ApiRoutes.Auth}/login or /register."
+                    Description = "JWT access token. Example: eyJhbGciOiJIUzI1NiIs..."
                 };
+
+                document.Security ??= [];
+                document.Security.Add(new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecuritySchemeReference("Bearer")] = []
+                });
 
                 return Task.CompletedTask;
             });
@@ -147,6 +153,16 @@ public static class ApplicationBuilderExtensions
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/openapi/v1.json", $"{ApplicationConstants.ApiName} v1");
+                options.RoutePrefix = "swagger";
+                options.DocumentTitle = ApplicationConstants.ApiName;
+                options.DisplayRequestDuration();
+                options.EnablePersistAuthorization();
+                options.EnableTryItOutByDefault();
+                options.EnableFilter();
+            });
             app.MapScalarApiReference(options =>
             {
                 options.WithTitle(ApplicationConstants.ApiName);

@@ -1,11 +1,14 @@
 using System.Security.Claims;
 using System.Text;
+using Handmade.Api.Authorization;
 using Handmade.Application.Abstractions.Identity;
 using Handmade.Application.Abstractions.Persistence;
 using Handmade.Application.Identity;
 using Handmade.Application.Identity.Services;
+using Handmade.Application.Seller;
 using Handmade.Domain.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -74,7 +77,15 @@ public static class AuthenticationExtensions
                 };
             });
 
-        services.AddAuthorization();
+        services.AddScoped<IAuthorizationHandler, SellerActiveHandler>();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(AuthorizationPolicies.SellerActive, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.Requirements.Add(new SellerActiveRequirement());
+            });
+        });
         return services;
     }
 }

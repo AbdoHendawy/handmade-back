@@ -113,9 +113,14 @@
 
 ---
 
-## ADR-012: OpenAPI UI — Scalar
+## ADR-012: OpenAPI UI — Swagger + Scalar
 
-**Decision:** `Microsoft.AspNetCore.OpenApi` + Scalar UI. Bearer JWT scheme is active for Identity endpoints.
+**Decision:** `Microsoft.AspNetCore.OpenApi` generates `/openapi/v1.json`. Development UIs:
+
+- Swagger UI at `/swagger` (JWT Authorize, Try it out)
+- Scalar at `/scalar`
+
+Bearer JWT is a global security scheme so authenticated endpoints can be called from the UI after pasting an access token.
 
 ---
 

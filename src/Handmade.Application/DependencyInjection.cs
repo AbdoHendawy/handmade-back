@@ -1,6 +1,8 @@
 using System.Reflection;
 using FluentValidation;
+using Handmade.Application.Abstractions.Identity;
 using Handmade.Application.Identity.Services;
+using Handmade.Application.Seller.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Handmade.Application;
@@ -12,6 +14,11 @@ public static class DependencyInjection
         Assembly assembly = typeof(DependencyInjection).Assembly;
         services.AddValidatorsFromAssembly(assembly);
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IIdentityRoleService, IdentityRoleService>();
+        services.AddScoped<ISellerNotificationService, SellerNotificationService>();
+        services.AddScoped<ISellerApplicationService, SellerApplicationService>();
+        services.AddScoped<ISellerProfileService, SellerProfileService>();
+        services.AddScoped<IAdminSellerService, AdminSellerService>();
 
         return services;
     }

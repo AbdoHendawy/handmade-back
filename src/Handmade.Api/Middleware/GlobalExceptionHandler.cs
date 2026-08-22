@@ -1,8 +1,11 @@
 using System.Diagnostics;
 using FluentValidation;
 using Handmade.Domain.Exceptions;
+using Handmade.Domain.Seller;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Handmade.Api.Middleware;
 
@@ -88,6 +91,16 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 "Not Found",
                 keyNotFound.Message,
                 "not_found"),
+            DbUpdateConcurrencyException => CreateProblem(
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                "The resource was modified by another operation.",
+                SellerErrorCodes.ConcurrencyConflict),
+            DbUpdateException dbUpdate when IsUniqueViolation(dbUpdate) => CreateProblem(
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                "The request conflicts with an existing resource.",
+                "conflict"),
             _ => CreateProblem(
                 StatusCodes.Status500InternalServerError,
                 "Internal Server Error",
@@ -100,6 +113,12 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         problem.Extensions["traceId"] = traceId;
         problem.Instance = httpContext.Request.Path;
         return problem;
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException postgres
+               && postgres.SqlState == PostgresErrorCodes.UniqueViolation;
     }
 
     private static ProblemDetails CreateValidationProblem(ValidationException exception)

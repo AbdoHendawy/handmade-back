@@ -36,22 +36,22 @@ Handmade backend is a **modular monolith** using **Clean Architecture**.
 
 Architecture tests under `tests/Handmade.Architecture.Tests` enforce these rules.
 
-## Modular monolith (future modules)
+## Modular monolith (modules)
 
-Features will be added as vertical slices / folders inside the existing projects, for example:
+Features are vertical slices / folders inside the existing projects:
 
 | Module | Examples |
 |---|---|
-| Auth | Register, login, tokens |
-| Users | Profiles |
-| Makers | Maker profiles |
-| Artworks | CRUD, publish |
-| Categories / Tags | Taxonomy |
-| Social | Likes, follows |
-| Collections | Saves, collections |
-| Moderation / Admin | Review workflows |
+| Identity | User, roles, register, login, JWT, refresh tokens |
+| Seller | Applications, admin review, seller profile, Active/Suspended |
+| Catalog / Products | Future — should reference `SellerProfile.Id` |
+| Categories / Tags | Future |
+| Orders / Payments | Future |
+| Social / Collections | Future |
 
 Do not extract microservices until a concrete scaling or team boundary requires it.
+
+See [identity.md](identity.md) and [seller.md](seller.md).
 
 ## Request flow (future)
 

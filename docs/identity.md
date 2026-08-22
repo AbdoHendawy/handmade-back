@@ -11,7 +11,7 @@ Identity answers:
 - What roles do they have?
 - Is the session still valid?
 
-Identity does **not** own Seller applications, store profiles, products, or orders.
+Identity does **not** own Seller applications, store profiles, products, or orders. Seller role assignment for trusted internal callers goes through `IIdentityRoleService` (no `SaveChanges`; the caller owns the unit of work). See [seller.md](seller.md).
 
 ## Domain model
 
@@ -23,7 +23,7 @@ Identity does **not** own Seller applications, store profiles, products, or orde
 | `ExternalLogin` | Linked providers (Google now; Apple/Microsoft later) |
 | `RefreshToken` | Opaque hashed refresh tokens with rotation |
 
-Registration always assigns **Customer** server-side. Clients cannot choose Admin/Seller.
+Registration always assigns **Customer** server-side. Clients cannot choose Admin/Seller. The Seller module assigns the Seller role after admin approval via `IIdentityRoleService`.
 
 ## Auth flows
 
@@ -121,4 +121,4 @@ Development auto-migrates on API startup, then seeds roles idempotently.
 
 ## Intentionally out of scope
 
-Seller applications, admin user bootstrap UI, production email provider, Outbox table, Redis token blacklist.
+Seller application **business rules** live in the Seller module. Identity only exposes role assignment. Admin user bootstrap UI, production email provider, Outbox table, Redis token blacklist remain out of scope.

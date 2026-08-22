@@ -138,6 +138,19 @@ public sealed class User : AggregateRoot, IAuditable
         _userRoles.Add(new UserRole(Id, role.Id));
     }
 
+    public void RemoveRole(Role role)
+    {
+        ArgumentNullException.ThrowIfNull(role);
+
+        UserRole? existing = _userRoles.FirstOrDefault(ur => ur.RoleId == role.Id);
+        if (existing is null)
+        {
+            return;
+        }
+
+        _userRoles.Remove(existing);
+    }
+
     public void LinkExternalLogin(ExternalLogin externalLogin)
     {
         ArgumentNullException.ThrowIfNull(externalLogin);

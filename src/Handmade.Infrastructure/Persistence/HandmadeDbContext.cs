@@ -1,5 +1,6 @@
 using Handmade.Application.Abstractions.Persistence;
 using Handmade.Domain.Identity;
+using Handmade.Domain.Seller;
 using Microsoft.EntityFrameworkCore;
 
 namespace Handmade.Infrastructure.Persistence;
@@ -20,6 +21,10 @@ public sealed class HandmadeDbContext : DbContext, IApplicationDbContext
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    public DbSet<SellerApplication> SellerApplications => Set<SellerApplication>();
+
+    public DbSet<SellerProfile> SellerProfiles => Set<SellerProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
