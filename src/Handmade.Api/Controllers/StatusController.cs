@@ -1,3 +1,4 @@
+using Handmade.Application.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Handmade.Api.Controllers;
@@ -6,7 +7,7 @@ namespace Handmade.Api.Controllers;
 /// Foundation status endpoint used to validate API versioning. No business logic.
 /// </summary>
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route(ApiRoutes.Status)]
 public sealed class StatusController : ControllerBase
 {
     /// <summary>

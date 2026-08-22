@@ -115,4 +115,37 @@
 
 ## ADR-012: OpenAPI UI — Scalar
 
-**Decision:** `Microsoft.AspNetCore.OpenApi` + Scalar UI. Bearer security scheme is declared but unused until auth sprint.
+**Decision:** `Microsoft.AspNetCore.OpenApi` + Scalar UI. Bearer JWT scheme is active for Identity endpoints.
+
+---
+
+## ADR-013: Password hashing — Argon2id
+
+**Decision:** `IPasswordHasher` implemented with Argon2id (`Konscious.Security.Cryptography.Argon2`).
+
+**Reason:** Memory-hard, modern default for password storage. Never log passwords or hashes.
+
+---
+
+## ADR-014: Google auth — SPA id_token
+
+**Decision:** Angular obtains a Google ID token; API validates it at `POST /api/v1/auth/google` using `Google.Apis.Auth`.
+
+**Reason:** Fits SPA architecture; avoids server-side redirect OAuth complexity for v1.
+
+---
+
+## ADR-015: Session revocation — SecurityStamp
+
+**Decision:** JWT includes `sst` claim; admin `revoke-sessions` increments `User.SecurityStamp` and revokes all refresh tokens. Bearer `OnTokenValidated` enforces stamp match.
+
+**Reason:** Immediate kick without Redis JWT blacklist.
+
+---
+
+## ADR-016: Welcome email — console + flag idempotency
+
+**Decision:** `IEmailSender` with Development `ConsoleEmailSender`; idempotency via `User.WelcomeEmailSent`. No Outbox table yet.
+
+**Reason:** Avoid broker complexity; Outbox can be added later without redesigning Identity ports.
+

@@ -2,7 +2,7 @@
 
 ASP.NET Core backend for the **Handmade** Art & Crafts Gallery platform.
 
-This repository currently contains the **backend foundation** only: Clean Architecture solution structure, PostgreSQL/EF Core infrastructure, API cross-cutting concerns, Dockerized PostgreSQL, tests, and documentation. Business features (auth, makers, artworks, etc.) are intentionally not implemented yet.
+This repository is a **modular monolith** with Sprint 1 foundation and **Sprint 2 Identity & Authentication** (email/Google login, JWT, refresh rotation, roles, admin force-logout).
 
 ## Architecture
 
@@ -14,12 +14,12 @@ Domain ← Application ← Infrastructure
 
 | Project | Responsibility |
 |---|---|
-| `Handmade.Domain` | Entities base types, domain exceptions |
-| `Handmade.Application` | Use-case abstractions, validation, interfaces |
-| `Handmade.Infrastructure` | EF Core, PostgreSQL, storage placeholders |
-| `Handmade.Api` | HTTP, middleware, OpenAPI, health, CORS |
+| `Handmade.Domain` | Entity bases, Identity aggregates, domain exceptions |
+| `Handmade.Application` | Auth use cases, validation, ports |
+| `Handmade.Infrastructure` | EF Core, PostgreSQL, Argon2, JWT, Google validator, email |
+| `Handmade.Api` | HTTP, auth middleware, OpenAPI, health, CORS |
 
-See [docs/architecture.md](docs/architecture.md) and [docs/architecture-decisions.md](docs/architecture-decisions.md).
+See [docs/architecture.md](docs/architecture.md), [docs/identity.md](docs/identity.md), and [docs/architecture-decisions.md](docs/architecture-decisions.md).
 
 ## Prerequisites
 
@@ -115,6 +115,7 @@ Handmade.sln
 
 - [Architecture](docs/architecture.md)
 - [Architecture decisions](docs/architecture-decisions.md)
+- [Identity](docs/identity.md)
 - [Development](docs/development.md)
 - [Database](docs/database.md)
 - [API guidelines](docs/api-guidelines.md)

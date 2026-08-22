@@ -1,3 +1,4 @@
+using Handmade.Application.Common;
 using Handmade.Infrastructure.Persistence;
 using Handmade.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +31,7 @@ public sealed class HandmadeDbContextFactory : IDesignTimeDbContextFactory<Handm
                 .AddEnvironmentVariables()
                 .Build();
 
-            connectionString = configuration.GetConnectionString("Default");
+            connectionString = configuration.GetConnectionString(ApplicationConstants.DefaultConnectionStringName);
         }
 
         if (string.IsNullOrWhiteSpace(connectionString))

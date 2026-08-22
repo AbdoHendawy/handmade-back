@@ -44,6 +44,7 @@ public static class ServiceCollectionExtensions
         services.AddCorsConfiguration(configuration, environment);
         services.AddHandmadeHealthChecks(configuration);
         services.AddHandmadeOpenApi();
+        services.AddHandmadeAuthentication(configuration);
 
         return services;
     }
@@ -64,7 +65,7 @@ public static class ServiceCollectionExtensions
 
         services.AddCors(options =>
         {
-            options.AddPolicy("Default", policy =>
+            options.AddPolicy(CorsOptions.DefaultPolicyName, policy =>
             {
                 if (corsOptions.AllowedOrigins.Length == 0)
                 {
@@ -85,7 +86,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        string? connectionString = configuration.GetConnectionString("Default");
+        string? connectionString = configuration.GetConnectionString(ApplicationConstants.DefaultConnectionStringName);
 
         IHealthChecksBuilder healthChecks = services.AddHealthChecks()
             .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"]);
@@ -111,7 +112,7 @@ public static class ServiceCollectionExtensions
                 {
                     Title = ApplicationConstants.ApiName,
                     Version = "v1",
-                    Description = "Handmade Art & Crafts Gallery API foundation."
+                    Description = "Handmade Art & Crafts Gallery API with Identity & Authentication."
                 };
 
                 document.Components ??= new OpenApiComponents();
@@ -121,7 +122,7 @@ public static class ServiceCollectionExtensions
                     Type = SecuritySchemeType.Http,
                     Scheme = "bearer",
                     BearerFormat = "JWT",
-                    Description = "JWT Bearer token. Authentication will be enabled in a later sprint."
+                    Description = $"Paste a JWT access token from /{ApiRoutes.Auth}/login or /register."
                 };
 
                 return Task.CompletedTask;
@@ -139,7 +140,9 @@ public static class ApplicationBuilderExtensions
         app.UseExceptionHandler();
         app.UseMiddleware<SecurityHeadersMiddleware>();
         app.UseHttpsRedirection();
-        app.UseCors("Default");
+        app.UseCors(CorsOptions.DefaultPolicyName);
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         if (app.Environment.IsDevelopment())
         {

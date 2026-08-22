@@ -1,5 +1,5 @@
 using Handmade.Application.Abstractions.Persistence;
-using Handmade.Infrastructure.Persistence.Interceptors;
+using Handmade.Domain.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Handmade.Infrastructure.Persistence;
@@ -10,6 +10,16 @@ public sealed class HandmadeDbContext : DbContext, IApplicationDbContext
         : base(options)
     {
     }
+
+    public DbSet<User> Users => Set<User>();
+
+    public DbSet<Role> Roles => Set<Role>();
+
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+
+    public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
+
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

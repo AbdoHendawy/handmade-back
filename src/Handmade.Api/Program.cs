@@ -1,4 +1,7 @@
 using Handmade.Api.Extensions;
+using Handmade.Infrastructure.Persistence;
+using Handmade.Infrastructure.Persistence.Seeding;
+using Microsoft.EntityFrameworkCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +17,15 @@ app.Logger.LogInformation(
     "Starting {Application} in {Environment} environment",
     "Handmade.Api",
     app.Environment.EnvironmentName);
+
+if (app.Environment.IsDevelopment())
+{
+    using IServiceScope scope = app.Services.CreateScope();
+    HandmadeDbContext db = scope.ServiceProvider.GetRequiredService<HandmadeDbContext>();
+    await db.Database.MigrateAsync();
+}
+
+await IdentitySeed.SeedRolesAsync(app.Services);
 
 app.UseHandmadePipeline();
 
