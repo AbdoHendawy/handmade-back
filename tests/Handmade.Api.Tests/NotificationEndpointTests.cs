@@ -5,9 +5,11 @@ using System.Text.Json;
 using Handmade.Application.Common;
 using Handmade.Application.Identity.DTOs;
 using Handmade.Application.Notifications.DTOs;
+using Handmade.Application.Notifications.Services;
 using Handmade.Application.Seller.DTOs;
 using Handmade.Domain.Identity;
 using Handmade.Domain.Notifications;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Handmade.Api.Tests;
 
@@ -32,6 +34,52 @@ public sealed class NotificationEndpointTests
     }
 
     [Fact]
+    public async Task Register_CreatesWelcomeInAppNotification_WithoutDuplicatingWelcomeEmail()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        AuthenticationResponse user = await RegisterAsync(client);
+        Authorize(client, user.AccessToken);
+
+        PagedResult<NotificationResponse> page = await ListAsync(client);
+        NotificationResponse welcome = Assert.Single(page.Items, n => n.Type == NotificationTypes.Welcome);
+        Assert.Equal(user.User.Id, welcome.UserId);
+        Assert.Contains($"\"userId\":\"{user.User.Id:D}\"", welcome.DataJson, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Equal(
+            1,
+            _factory.Emails.Sent.Count(m => m.To == user.User.Email && m.Subject == "Welcome to Handmade"));
+    }
+
+    [Fact]
+    public async Task Clients_CannotCreateArbitraryNotifications()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        AuthenticationResponse user = await RegisterAsync(client);
+        Authorize(client, user.AccessToken);
+
+        HttpResponseMessage created = await client.PostAsJsonAsync(
+            "/api/v1/notifications",
+            new { type = "system.manual", title = "Hello", body = "Nope" });
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, created.StatusCode);
+
+        HttpResponseMessage anonymous = await _factory.CreateMigratedClient()
+            .PostAsJsonAsync("/api/v1/notifications", new { type = "system.manual", title = "Hello", body = "Nope" });
+        Assert.True(
+            anonymous.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.MethodNotAllowed,
+            anonymous.StatusCode.ToString());
+    }
+
+    [Fact]
+    public async Task QueryStringAccessToken_IsRejectedForRestApi()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        AuthenticationResponse user = await RegisterAsync(client);
+
+        HttpResponseMessage response = await client.GetAsync($"/api/v1/notifications?access_token={user.AccessToken}");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Apply_PersistsInAppNotification_AndSupportsReadUnread()
     {
         HttpClient client = _factory.CreateMigratedClient();
@@ -46,24 +94,20 @@ public sealed class NotificationEndpointTests
                 "+201000000001"));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
-        UnreadCountResponse unread = (await (await client.GetAsync("/api/v1/notifications/unread-count")).Content
-            .ReadFromJsonAsync<UnreadCountResponse>(JsonOptions))!;
-        Assert.Equal(1, unread.Count);
-
-        PagedResult<NotificationResponse> page = (await (await client.GetAsync("/api/v1/notifications?unreadOnly=true")).Content
-            .ReadFromJsonAsync<PagedResult<NotificationResponse>>(JsonOptions))!;
-        Assert.Equal(1, page.TotalCount);
-        NotificationResponse item = page.Items[0];
-        Assert.Equal(NotificationTypes.SellerApplicationSubmitted, item.Type);
+        PagedResult<NotificationResponse> page = await ListAsync(client, unreadOnly: true);
+        NotificationResponse item = Assert.Single(page.Items, n => n.Type == NotificationTypes.SellerApplicationSubmitted);
         Assert.False(item.IsRead);
         Assert.Equal("Delivered", item.DeliveryStatus);
+        NotificationResponse fetched = (await (await client.GetAsync($"/api/v1/notifications/{item.Id}")).Content
+            .ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+        Assert.Equal(item.Id, fetched.Id);
+        Assert.Contains("applicationId", fetched.DataJson, StringComparison.OrdinalIgnoreCase);
 
         HttpResponseMessage marked = await client.PostAsync($"/api/v1/notifications/{item.Id}/read", content: null);
         Assert.Equal(HttpStatusCode.OK, marked.StatusCode);
 
-        UnreadCountResponse after = (await (await client.GetAsync("/api/v1/notifications/unread-count")).Content
-            .ReadFromJsonAsync<UnreadCountResponse>(JsonOptions))!;
-        Assert.Equal(0, after.Count);
+        PagedResult<NotificationResponse> unread = await ListAsync(client, unreadOnly: true);
+        Assert.DoesNotContain(unread.Items, n => n.Id == item.Id);
     }
 
     [Fact]
@@ -72,52 +116,34 @@ public sealed class NotificationEndpointTests
         HttpClient client = _factory.CreateMigratedClient();
         AuthenticationResponse owner = await RegisterAsync(client);
         Authorize(client, owner.AccessToken);
-        await client.PostAsJsonAsync(
-            "/api/v1/seller/applications",
-            new SubmitSellerApplicationRequest(
-                "Abdo Handmade",
-                "Handmade accessories and crafts studio.",
-                "+201000000001"));
-
-        PagedResult<NotificationResponse> page = (await (await client.GetAsync("/api/v1/notifications")).Content
-            .ReadFromJsonAsync<PagedResult<NotificationResponse>>(JsonOptions))!;
+        PagedResult<NotificationResponse> page = await ListAsync(client);
         Guid notificationId = page.Items[0].Id;
 
         AuthenticationResponse other = await RegisterAsync(client);
         Authorize(client, other.AccessToken);
-        HttpResponseMessage response = await client.PostAsync($"/api/v1/notifications/{notificationId}/read", content: null);
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/notifications/{notificationId}")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.PostAsync($"/api/v1/notifications/{notificationId}/read", content: null)).StatusCode);
     }
 
     [Fact]
     public async Task Approve_CreatesSellerApprovedNotification()
     {
         HttpClient client = _factory.CreateMigratedClient();
-        AuthenticationResponse applicant = await RegisterAsync(client);
-        Authorize(client, applicant.AccessToken);
-        SellerApplicationResponse application = (await (await client.PostAsJsonAsync(
-            "/api/v1/seller/applications",
-            new SubmitSellerApplicationRequest(
-                "Abdo Handmade",
-                "Handmade accessories and crafts studio.",
-                "+201000000001"))).Content
-            .ReadFromJsonAsync<SellerApplicationResponse>(JsonOptions))!;
+        (AuthenticationResponse applicant, SellerApplicationResponse application) = await SubmitApplicationAsync(client);
 
-        AuthenticationResponse admin = await RegisterAsync(client);
-        await _factory.AssignRoleAsync(admin.User.Id, RoleNames.Admin);
-        AuthenticationResponse adminSession = (await (await client.PostAsJsonAsync(
-            "/api/v1/auth/login",
-            new LoginRequest(admin.User.Email, "StrongPass1!"))).Content
-            .ReadFromJsonAsync<AuthenticationResponse>(JsonOptions))!;
-        Authorize(client, adminSession.AccessToken);
+        await LoginAsAdminAsync(client);
         Assert.Equal(
             HttpStatusCode.OK,
             (await client.PostAsync($"/api/v1/admin/seller-applications/{application.Id}/approve", content: null)).StatusCode);
 
         Authorize(client, applicant.AccessToken);
-        PagedResult<NotificationResponse> page = (await (await client.GetAsync("/api/v1/notifications")).Content
-            .ReadFromJsonAsync<PagedResult<NotificationResponse>>(JsonOptions))!;
-        Assert.Contains(page.Items, n => n.Type == NotificationTypes.SellerApplicationApproved);
+        PagedResult<NotificationResponse> page = await ListAsync(client);
+        NotificationResponse approved = Assert.Single(page.Items, n => n.Type == NotificationTypes.SellerApplicationApproved);
+        Assert.Contains("sellerId", approved.DataJson, StringComparison.OrdinalIgnoreCase);
 
         HttpResponseMessage readAll = await client.PostAsync("/api/v1/notifications/read-all", content: null);
         Assert.Equal(HttpStatusCode.NoContent, readAll.StatusCode);
@@ -127,61 +153,59 @@ public sealed class NotificationEndpointTests
     }
 
     [Fact]
-    public async Task User_CanCreateGetUpdateAndDeleteOwnNotification()
+    public async Task Reject_IncludesUserFacingReason()
     {
         HttpClient client = _factory.CreateMigratedClient();
-        AuthenticationResponse user = await RegisterAsync(client);
-        Authorize(client, user.AccessToken);
+        (AuthenticationResponse applicant, SellerApplicationResponse application) = await SubmitApplicationAsync(client);
 
-        HttpResponseMessage created = await client.PostAsJsonAsync(
-            "/api/v1/notifications",
-            new CreateInboxNotificationRequest("system.manual", "Hello", "Please review your shop.", null, null));
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        NotificationResponse item = (await created.Content.ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
-        Assert.Equal(user.User.Id, item.UserId);
-        Assert.Equal("Hello", item.Title);
+        const string reason = "Please provide a more detailed business description.";
+        await LoginAsAdminAsync(client);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await client.PostAsJsonAsync(
+                $"/api/v1/admin/seller-applications/{application.Id}/reject",
+                new RejectSellerApplicationRequest(reason))).StatusCode);
 
-        NotificationResponse fetched = (await (await client.GetAsync($"/api/v1/notifications/{item.Id}")).Content
-            .ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
-        Assert.Equal(item.Id, fetched.Id);
-
-        HttpResponseMessage updated = await client.PutAsJsonAsync(
-            $"/api/v1/notifications/{item.Id}",
-            new UpdateNotificationRequest("Updated", "New body", true, null));
-        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
-        NotificationResponse afterUpdate = (await updated.Content.ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
-        Assert.Equal("Updated", afterUpdate.Title);
-        Assert.True(afterUpdate.IsRead);
-
-        HttpResponseMessage deleted = await client.DeleteAsync($"/api/v1/notifications/{item.Id}");
-        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/notifications/{item.Id}")).StatusCode);
+        Authorize(client, applicant.AccessToken);
+        NotificationResponse rejected = Assert.Single(
+            (await ListAsync(client)).Items,
+            n => n.Type == NotificationTypes.SellerApplicationRejected);
+        Assert.Contains(reason, rejected.Body);
+        Assert.Contains(reason, rejected.DataJson);
+        Assert.DoesNotContain("rejectedBy", rejected.DataJson, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task CannotUpdateOrDeleteAnotherUsersNotification()
+    public async Task SuspendAndReactivate_CreateSellerNotifications()
     {
         HttpClient client = _factory.CreateMigratedClient();
-        AuthenticationResponse owner = await RegisterAsync(client);
-        Authorize(client, owner.AccessToken);
-        NotificationResponse item = (await (await client.PostAsJsonAsync(
-            "/api/v1/notifications",
-            new CreateInboxNotificationRequest("system.manual", "Hello", "Body", null, null))).Content
-            .ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+        (AuthenticationResponse applicant, SellerApplicationResponse application) = await SubmitApplicationAsync(client);
+        await LoginAsAdminAsync(client);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await client.PostAsync($"/api/v1/admin/seller-applications/{application.Id}/approve", content: null)).StatusCode);
 
-        AuthenticationResponse other = await RegisterAsync(client);
-        Authorize(client, other.AccessToken);
+        Authorize(client, applicant.AccessToken);
+        SellerProfileResponse profile = (await (await client.GetAsync("/api/v1/seller/profile")).Content
+            .ReadFromJsonAsync<SellerProfileResponse>(JsonOptions))!;
+
+        await LoginAsAdminAsync(client);
+        const string reason = "Policy violation documented for the seller.";
         Assert.Equal(
-            HttpStatusCode.NotFound,
-            (await client.GetAsync($"/api/v1/notifications/{item.Id}")).StatusCode);
+            HttpStatusCode.OK,
+            (await client.PostAsJsonAsync(
+                $"/api/v1/admin/sellers/{profile.Id}/suspend",
+                new SuspendSellerRequest(reason))).StatusCode);
         Assert.Equal(
-            HttpStatusCode.NotFound,
-            (await client.PutAsJsonAsync(
-                $"/api/v1/notifications/{item.Id}",
-                new UpdateNotificationRequest("Hacked", "x", true, null))).StatusCode);
-        Assert.Equal(
-            HttpStatusCode.NotFound,
-            (await client.DeleteAsync($"/api/v1/notifications/{item.Id}")).StatusCode);
+            HttpStatusCode.OK,
+            (await client.PostAsync($"/api/v1/admin/sellers/{profile.Id}/reactivate", content: null)).StatusCode);
+
+        Authorize(client, applicant.AccessToken);
+        PagedResult<NotificationResponse> page = await ListAsync(client);
+        NotificationResponse suspended = Assert.Single(page.Items, n => n.Type == NotificationTypes.SellerSuspended);
+        Assert.Contains(reason, suspended.Body);
+        Assert.Contains($"\"sellerId\":\"{profile.Id:D}\"", suspended.DataJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(page.Items, n => n.Type == NotificationTypes.SellerReactivated);
     }
 
     [Fact]
@@ -201,6 +225,63 @@ public sealed class NotificationEndpointTests
                     "Hello",
                     target.User.Id))).StatusCode);
 
+        await LoginAsAdminAsync(client);
+
+        string idempotencyKey = $"admin.broadcast:{Guid.NewGuid():N}";
+        HttpResponseMessage created = await client.PostAsJsonAsync(
+            "/api/v1/admin/notifications",
+            new AdminCreateNotificationRequest(
+                "admin.broadcast",
+                "Notice",
+                "Hello from admin",
+                target.User.Id,
+                IdempotencyKey: idempotencyKey));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        NotificationResponse item = (await created.Content.ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+        Assert.Equal(target.User.Id, item.UserId);
+
+        HttpResponseMessage duplicate = await client.PostAsJsonAsync(
+            "/api/v1/admin/notifications",
+            new AdminCreateNotificationRequest(
+                "admin.broadcast",
+                "Notice again",
+                "Should not duplicate",
+                target.User.Id,
+                IdempotencyKey: idempotencyKey));
+        NotificationResponse same = (await duplicate.Content.ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+        Assert.Equal(item.Id, same.Id);
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            INotificationDeliveryService delivery = scope.ServiceProvider.GetRequiredService<INotificationDeliveryService>();
+            await delivery.DeliverAsync(item.Id);
+            await delivery.DeliverAsync(item.Id);
+        }
+
+        Authorize(client, target.AccessToken);
+        Assert.Equal(1, (await ListAsync(client)).Items.Count(n => n.Id == item.Id));
+
+        await LoginAsAdminAsync(client);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/v1/admin/notifications/{item.Id}")).StatusCode);
+    }
+
+    private async Task<(AuthenticationResponse Applicant, SellerApplicationResponse Application)> SubmitApplicationAsync(
+        HttpClient client)
+    {
+        AuthenticationResponse applicant = await RegisterAsync(client);
+        Authorize(client, applicant.AccessToken);
+        SellerApplicationResponse application = (await (await client.PostAsJsonAsync(
+            "/api/v1/seller/applications",
+            new SubmitSellerApplicationRequest(
+                "Abdo Handmade",
+                "Handmade accessories and crafts studio.",
+                "+201000000001"))).Content
+            .ReadFromJsonAsync<SellerApplicationResponse>(JsonOptions))!;
+        return (applicant, application);
+    }
+
+    private async Task LoginAsAdminAsync(HttpClient client)
+    {
         AuthenticationResponse admin = await RegisterAsync(client);
         await _factory.AssignRoleAsync(admin.User.Id, RoleNames.Admin);
         AuthenticationResponse adminSession = (await (await client.PostAsJsonAsync(
@@ -208,24 +289,13 @@ public sealed class NotificationEndpointTests
             new LoginRequest(admin.User.Email, "StrongPass1!"))).Content
             .ReadFromJsonAsync<AuthenticationResponse>(JsonOptions))!;
         Authorize(client, adminSession.AccessToken);
+    }
 
-        HttpResponseMessage created = await client.PostAsJsonAsync(
-            "/api/v1/admin/notifications",
-            new AdminCreateNotificationRequest(
-                "admin.broadcast",
-                "Notice",
-                "Hello from admin",
-                target.User.Id));
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        NotificationResponse item = (await created.Content.ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
-        Assert.Equal(target.User.Id, item.UserId);
-
-        PagedResult<NotificationResponse> adminList = (await (await client.GetAsync(
-            $"/api/v1/admin/notifications?userId={target.User.Id}")).Content
+    private static async Task<PagedResult<NotificationResponse>> ListAsync(HttpClient client, bool unreadOnly = false)
+    {
+        string suffix = unreadOnly ? "?unreadOnly=true" : string.Empty;
+        return (await (await client.GetAsync($"/api/v1/notifications{suffix}")).Content
             .ReadFromJsonAsync<PagedResult<NotificationResponse>>(JsonOptions))!;
-        Assert.Contains(adminList.Items, n => n.Id == item.Id);
-
-        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/v1/admin/notifications/{item.Id}")).StatusCode);
     }
 
     private static async Task<AuthenticationResponse> RegisterAsync(HttpClient client)

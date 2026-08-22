@@ -57,6 +57,7 @@ public sealed class AuthenticationService : IAuthenticationService
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IEnumerable<IExternalAuthProvider> _externalAuthProviders;
     private readonly IEmailSender _emailSender;
+    private readonly IIdentityNotificationService _identityNotifications;
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly JwtSettings _jwtSettings;
@@ -73,6 +74,7 @@ public sealed class AuthenticationService : IAuthenticationService
         IJwtTokenGenerator jwtTokenGenerator,
         IEnumerable<IExternalAuthProvider> externalAuthProviders,
         IEmailSender emailSender,
+        IIdentityNotificationService identityNotifications,
         ICurrentUser currentUser,
         IClock clock,
         IOptions<JwtSettings> jwtSettings,
@@ -88,6 +90,7 @@ public sealed class AuthenticationService : IAuthenticationService
         _jwtTokenGenerator = jwtTokenGenerator;
         _externalAuthProviders = externalAuthProviders;
         _emailSender = emailSender;
+        _identityNotifications = identityNotifications;
         _currentUser = currentUser;
         _clock = clock;
         _jwtSettings = jwtSettings.Value;
@@ -121,6 +124,7 @@ public sealed class AuthenticationService : IAuthenticationService
         _db.Users.Add(user);
         await _db.SaveChangesAsync(cancellationToken);
 
+        await _identityNotifications.NotifyWelcomeAsync(user.Id, cancellationToken);
         await TrySendWelcomeEmailAsync(user, cancellationToken);
 
         return await IssueTokensAsync(user, ipAddress, cancellationToken);
@@ -225,6 +229,7 @@ public sealed class AuthenticationService : IAuthenticationService
 
         if (isNewRegistration)
         {
+            await _identityNotifications.NotifyWelcomeAsync(userByEmail.Id, cancellationToken);
             await TrySendWelcomeEmailAsync(userByEmail, cancellationToken);
         }
 

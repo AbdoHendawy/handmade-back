@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Handmade.Application.Abstractions.Notifications;
 using Handmade.Application.Notifications;
 using Handmade.Application.Notifications.DTOs;
@@ -26,18 +27,31 @@ public sealed class SignalRNotificationSender : IRealtimeNotificationSender
             .SendAsync(NotificationHubMethods.NotificationReceived, ToPayload(message), cancellationToken);
     }
 
-    private static NotificationResponse ToPayload(UserNotificationMessage message)
+    private static NotificationDeliveryPayload ToPayload(UserNotificationMessage message)
     {
-        return new NotificationResponse(
+        return new NotificationDeliveryPayload(
             message.NotificationId,
-            message.UserId,
             message.Type,
             message.Title,
             message.Body,
-            message.DataJson,
-            IsRead: false,
-            ReadAt: null,
-            DeliveryStatus: "Pending",
+            ParseData(message.DataJson),
             message.CreatedAt);
+    }
+
+    private static object? ParseData(string? dataJson)
+    {
+        if (string.IsNullOrWhiteSpace(dataJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<JsonElement>(dataJson);
+        }
+        catch (JsonException)
+        {
+            return dataJson;
+        }
     }
 }

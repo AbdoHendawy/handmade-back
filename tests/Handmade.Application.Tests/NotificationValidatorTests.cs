@@ -7,20 +7,14 @@ namespace Handmade.Application.Tests;
 public sealed class NotificationValidatorTests
 {
     [Fact]
-    public async Task CreateInbox_ValidRequest_Passes()
+    public async Task AdminCreate_ValidUserRequest_Passes()
     {
-        CreateInboxNotificationRequestValidator validator = new();
-        await validator.ValidateAndThrowAsync(ValidInboxCreate());
-    }
-
-    [Fact]
-    public async Task CreateInbox_EmptyTitle_Fails()
-    {
-        CreateInboxNotificationRequestValidator validator = new();
-        ValidationException exception = await Assert.ThrowsAsync<ValidationException>(
-            () => validator.ValidateAndThrowAsync(ValidInboxCreate() with { Title = " " }));
-
-        Assert.Contains(exception.Errors, e => e.PropertyName == nameof(CreateInboxNotificationRequest.Title));
+        AdminCreateNotificationRequestValidator validator = new();
+        await validator.ValidateAndThrowAsync(new AdminCreateNotificationRequest(
+            "admin.broadcast",
+            "Notice",
+            "Hello",
+            Guid.CreateVersion7()));
     }
 
     [Fact]
@@ -39,10 +33,5 @@ public sealed class NotificationValidatorTests
                 Guid.CreateVersion7(),
                 "Admin")));
         Assert.Contains(both.Errors, e => e.PropertyName == "UserId");
-    }
-
-    private static CreateInboxNotificationRequest ValidInboxCreate()
-    {
-        return new CreateInboxNotificationRequest("system.manual", "Hello", "Body text");
     }
 }

@@ -17,7 +17,7 @@ public static class NotificationHubRoutes
 
 public static class NotificationHubMethods
 {
-    public const string NotificationReceived = "notificationReceived";
+    public const string NotificationReceived = "notification.received";
 }
 
 public static class NotificationGroups

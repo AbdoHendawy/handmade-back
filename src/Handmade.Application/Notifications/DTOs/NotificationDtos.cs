@@ -8,13 +8,6 @@ public sealed record CreateUserNotificationRequest(
     string IdempotencyKey,
     string? DataJson = null);
 
-public sealed record CreateInboxNotificationRequest(
-    string Type,
-    string Title,
-    string Body,
-    string? DataJson = null,
-    string? IdempotencyKey = null);
-
 public sealed record UpdateNotificationRequest(
     string Title,
     string Body,
@@ -45,3 +38,11 @@ public sealed record NotificationResponse(
     DateTimeOffset CreatedAt);
 
 public sealed record UnreadCountResponse(int Count);
+
+public sealed record NotificationDeliveryPayload(
+    Guid Id,
+    string Type,
+    string Title,
+    string Message,
+    object? Data,
+    DateTimeOffset CreatedAt);

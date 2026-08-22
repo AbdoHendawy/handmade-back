@@ -1,7 +1,6 @@
 using Handmade.Application.Abstractions.Email;
 using Handmade.Application.Abstractions.Notifications;
 using Handmade.Application.Abstractions.Persistence;
-using Handmade.Application.Identity.Email;
 using Handmade.Application.Notifications.DTOs;
 using Handmade.Application.Seller.Email;
 using Handmade.Domain.Identity;
@@ -114,7 +113,6 @@ public sealed class NotificationDeliveryService : INotificationDeliveryService
     {
         return type switch
         {
-            NotificationTypes.Welcome => WelcomeEmailTemplate.Create(email, firstName),
             NotificationTypes.SellerApplicationSubmitted => SellerEmailTemplates.ApplicationSubmitted(email, firstName),
             NotificationTypes.SellerApplicationApproved => SellerEmailTemplates.ApplicationApproved(email, firstName),
             NotificationTypes.SellerApplicationRejected => SellerEmailTemplates.ApplicationRejected(email, firstName),

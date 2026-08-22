@@ -16,6 +16,7 @@ public static class DependencyInjection
         Assembly assembly = typeof(DependencyInjection).Assembly;
         services.AddValidatorsFromAssembly(assembly);
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IIdentityNotificationService, IdentityNotificationService>();
         services.AddScoped<IIdentityRoleService, IdentityRoleService>();
         services.AddScoped<ISellerNotificationService, SellerNotificationService>();
         services.AddScoped<ISellerApplicationService, SellerApplicationService>();

@@ -45,46 +45,6 @@ public sealed class NotificationsController : ControllerBase
         return Ok(await _inbox.GetMineAsync(id, cancellationToken));
     }
 
-    /// <summary>Create a notification for the authenticated user and enqueue delivery.</summary>
-    [HttpPost]
-    [ProducesResponseType(typeof(NotificationResponse), StatusCodes.Status201Created)]
-    public async Task<ActionResult<NotificationResponse>> Create(
-        [FromBody] CreateInboxNotificationRequest request,
-        CancellationToken cancellationToken)
-    {
-        NotificationResponse created = await _inbox.CreateMineAsync(request, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, created);
-    }
-
-    /// <summary>Update title, body, data, and read state for an owned notification.</summary>
-    [HttpPut("{id:guid}")]
-    [ProducesResponseType(typeof(NotificationResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<NotificationResponse>> Update(
-        Guid id,
-        [FromBody] UpdateNotificationRequest request,
-        CancellationToken cancellationToken)
-    {
-        return Ok(await _inbox.UpdateMineAsync(id, request, cancellationToken));
-    }
-
-    /// <summary>Delete one owned notification.</summary>
-    [HttpDelete("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
-    {
-        await _inbox.DeleteMineAsync(id, cancellationToken);
-        return NoContent();
-    }
-
-    /// <summary>Delete every notification for the authenticated user.</summary>
-    [HttpDelete]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> DeleteAll(CancellationToken cancellationToken)
-    {
-        await _inbox.DeleteAllMineAsync(cancellationToken);
-        return NoContent();
-    }
-
     /// <summary>Mark a single notification as read. Idempotent if already read.</summary>
     [HttpPost("{id:guid}/read")]
     [ProducesResponseType(typeof(NotificationResponse), StatusCodes.Status200OK)]

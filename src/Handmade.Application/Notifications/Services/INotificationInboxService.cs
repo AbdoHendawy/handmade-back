@@ -14,19 +14,6 @@ public interface INotificationInboxService
 
     Task<UnreadCountResponse> GetUnreadCountAsync(CancellationToken cancellationToken = default);
 
-    Task<NotificationResponse> CreateMineAsync(
-        CreateInboxNotificationRequest request,
-        CancellationToken cancellationToken = default);
-
-    Task<NotificationResponse> UpdateMineAsync(
-        Guid notificationId,
-        UpdateNotificationRequest request,
-        CancellationToken cancellationToken = default);
-
-    Task DeleteMineAsync(Guid notificationId, CancellationToken cancellationToken = default);
-
-    Task DeleteAllMineAsync(CancellationToken cancellationToken = default);
-
     Task<NotificationResponse> MarkReadAsync(Guid notificationId, CancellationToken cancellationToken = default);
 
     Task MarkAllReadAsync(CancellationToken cancellationToken = default);

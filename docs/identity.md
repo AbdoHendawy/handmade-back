@@ -67,6 +67,8 @@ Configure `Jwt` section (secret min 32 chars). Startup fails if missing.
 
 Sent once on first registration (email or Google). Idempotent via `User.WelcomeEmailSent`. Failure does not roll back user creation. No Outbox broker yet (design is Outbox-compatible).
 
+Registration also publishes an in-app `identity.welcome` notification after the user row commits (`IIdentityNotificationService`). That inbox row is delivered over SignalR when the user is connected. The Hangfire delivery job does **not** send a second welcome email.
+
 ## Endpoints
 
 | Method | Route | Auth |

@@ -160,11 +160,11 @@ Bearer JWT is a global security scheme so authenticated endpoints can be called 
 
 **Decision:** Notifications are a first-class module. SignalR is only a delivery adapter (`IRealtimeNotificationSender`). Hangfire is only a background adapter (`IBackgroundJobQueue`). The source of truth is the `notifications` table (read/unread + delivery status + unique idempotency key).
 
-**Lifecycle:** business use case → `INotificationPublisher` → `SaveChanges` → enqueue delivery → SignalR (+ optional email).
+**Lifecycle:** business use case → commit → `INotificationPublisher` (or Identity/Seller wrapper) → `SaveChanges` → enqueue delivery → SignalR (+ optional Seller email). There is no public client `POST /notifications`.
 
 **Reason:** Offline users still have an inbox; retries and failures are durable; other modules (Product, Order, Payment) can publish without referencing hubs or Hangfire.
 
-**Alternatives rejected:** firing SignalR from the HTTP request; treating Hangfire as the notification store; dispatching domain events in this sprint (still raised, still not dispatched).
+**Alternatives rejected:** firing SignalR from the HTTP request; treating Hangfire as the notification store; dispatching domain events in this sprint (still raised, still not dispatched); a generic public create endpoint.
 
 ---
 
