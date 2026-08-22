@@ -77,6 +77,13 @@ Notification tables from Sprint 4.5:
 
 Hangfire tables live in schema `hangfire` (created by Hangfire.PostgreSql, not EF).
 
-Optimistic concurrency uses PostgreSQL `xmin` (EF rowversion). It is a system column; do not treat it as application data.
+Catalog tables from Sprint 4:
 
-See [seller.md](seller.md) and [notifications.md](notifications.md).
+- `categories` — unique `slug`; self-FK `parent_category_id` Restrict; index on parent and `is_active`
+- `products` — unique `slug`; FK `seller_id` → `seller_profiles` Restrict; FK `category_id` → `categories` Restrict; indexes on seller, category, status, created_at, `(status, published_at)` for public lists
+- `product_images` — FK cascade from product; partial unique one primary image per product
+- `product_variants` — unique `sku`; FK cascade from product
+
+Optimistic concurrency uses PostgreSQL `xmin` (EF rowversion) on categories. Product lifecycle races (double approve) fail via invalid state transitions; child collections (images/variants) do not use `xmin` because it conflicts with aggregate updates.
+
+See [seller.md](seller.md), [notifications.md](notifications.md), and [catalog.md](catalog.md).

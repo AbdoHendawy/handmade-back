@@ -26,6 +26,10 @@ if (app.Environment.IsDevelopment())
 }
 
 await IdentitySeed.SeedRolesAsync(app.Services);
+if (app.Environment.IsDevelopment())
+{
+    await CatalogSeed.SeedDevelopmentCategoriesAsync(app.Services);
+}
 
 app.UseHandmadePipeline();
 

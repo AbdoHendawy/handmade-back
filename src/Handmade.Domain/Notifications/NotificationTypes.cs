@@ -16,4 +16,10 @@ public static class NotificationTypes
     public const string SellerSuspended = "seller.suspended";
 
     public const string SellerReactivated = "seller.reactivated";
+
+    public const string ProductSubmitted = "catalog.product.submitted";
+
+    public const string ProductApproved = "catalog.product.approved";
+
+    public const string ProductRejected = "catalog.product.rejected";
 }

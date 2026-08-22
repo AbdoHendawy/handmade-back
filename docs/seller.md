@@ -140,8 +140,8 @@ Tables: `seller_applications`, `seller_profiles`.
 - Partial unique: one Pending application per user
 - `xmin` mapped as EF rowversion (PostgreSQL system column; not a real user column)
 
-Future Product entities should reference `SellerProfile.Id`, not `UserId`.
+Future Product entities should reference `SellerProfile.Id`, not `UserId`. See [catalog.md](catalog.md).
 
 ## Intentionally out of scope
 
-Products, categories, inventory, orders, payments, storefront, logo/cover upload, tax/compliance fields, Outbox, production SMTP.
+Inventory, orders, payments, storefront, logo/cover upload, tax/compliance fields, Outbox, production SMTP.

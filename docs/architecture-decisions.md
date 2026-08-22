@@ -166,3 +166,12 @@ Bearer JWT is a global security scheme so authenticated endpoints can be called 
 
 **Alternatives rejected:** firing SignalR from the HTTP request; treating Hangfire as the notification store; dispatching domain events in this sprint (still raised, still not dispatched).
 
+---
+
+## ADR-018: Money — `decimal` + ISO 4217 currency
+
+**Decision:** Product and variant prices are `decimal` with precision 18, scale 2, plus a 3-letter currency code. Default marketplace currency is `EGP`. No `float`/`double`. No money value-object type in EF (two columns) until checkout needs a shared `Money` primitive.
+
+**Reason:** Handmade catalog needs exact minor units without a pricing engine. Variants can override the product base price. Future orders must snapshot amount+currency at purchase time.
+
+

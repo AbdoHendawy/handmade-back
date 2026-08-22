@@ -127,7 +127,7 @@ public static class ServiceCollectionExtensions
                 {
                     Title = ApplicationConstants.ApiName,
                     Version = "v1",
-                    Description = "Handmade Art & Crafts Gallery API with Identity, Seller, and Notifications. Use Authorize with a JWT from POST /api/v1/auth/login or /register. SignalR hub: /hubs/notifications."
+                    Description = "Handmade Art & Crafts Gallery API with Identity, Seller, Notifications, and Catalog."
                 };
 
                 document.Components ??= new OpenApiComponents();

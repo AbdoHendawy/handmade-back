@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentValidation;
 using Handmade.Application.Abstractions.Identity;
+using Handmade.Application.Catalog.Services;
 using Handmade.Application.Identity.Services;
 using Handmade.Application.Notifications.Services;
 using Handmade.Application.Seller.Services;
@@ -24,6 +25,10 @@ public static class DependencyInjection
         services.AddScoped<INotificationInboxService, NotificationInboxService>();
         services.AddScoped<INotificationDeliveryService, NotificationDeliveryService>();
         services.AddScoped<IAdminNotificationService, AdminNotificationService>();
+        services.AddScoped<IAdminCategoryService, AdminCategoryService>();
+        services.AddScoped<ISellerProductService, SellerProductService>();
+        services.AddScoped<IAdminProductService, AdminProductService>();
+        services.AddScoped<IPublicCatalogService, PublicCatalogService>();
 
         return services;
     }

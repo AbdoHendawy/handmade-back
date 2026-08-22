@@ -1,4 +1,5 @@
 using Handmade.Application.Abstractions.Persistence;
+using Handmade.Domain.Catalog;
 using Handmade.Domain.Identity;
 using Handmade.Domain.Notifications;
 using Handmade.Domain.Seller;
@@ -28,6 +29,14 @@ public sealed class HandmadeDbContext : DbContext, IApplicationDbContext
     public DbSet<SellerProfile> SellerProfiles => Set<SellerProfile>();
 
     public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<Category> Categories => Set<Category>();
+
+    public DbSet<Product> Products => Set<Product>();
+
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+
+    public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

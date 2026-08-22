@@ -37,5 +37,17 @@ public static class ApiRoutes
 
     public const string AdminNotifications = $"{Admin}/notifications";
 
+    public const string Catalog = $"{V1}/catalog";
+
+    public const string CatalogProducts = $"{Catalog}/products";
+
+    public const string CatalogCategories = $"{Catalog}/categories";
+
+    public const string SellerProducts = $"{Seller}/products";
+
+    public const string AdminProducts = $"{Admin}/products";
+
+    public const string AdminCategories = $"{Admin}/categories";
+
     public const string Status = $"{V1}/[controller]";
 }
