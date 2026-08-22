@@ -174,4 +174,20 @@ Bearer JWT is a global security scheme so authenticated endpoints can be called 
 
 **Reason:** Handmade catalog needs exact minor units without a pricing engine. Variants can override the product base price. Future orders must snapshot amount+currency at purchase time.
 
+---
+
+## ADR-019: Cart price snapshot is not the order price
+
+**Decision:** Cart stores `priceSnapshot` + `currency` on each line for display and `priceChanged` detection. `GET /cart` always shows the **live** Catalog price. Checkout/Order must re-read Catalog and persist an immutable commercial snapshot. Cart does not reserve inventory.
+
+**Reason:** The cart is mutable shopping intent. Product price, status, and seller state can change while items sit in a cart. Treating cart data as the source of truth would create incorrect orders.
+
+**Also decided:**
+
+- One cart per user (`carts.user_id` unique), created lazily
+- Line identity is `(ProductId, VariantId?)`
+- Multi-seller carts are allowed; order splitting belongs to Checkout
+- Purchasability lives in Catalog (`IProductPurchaseQuery`): Published + active seller + variant rules
+- Concurrent add/update uses unique indexes, `xmin` on `cart_items`, and a single retry — not a second unit of work
+
 

@@ -49,5 +49,7 @@ public static class ApiRoutes
 
     public const string AdminCategories = $"{Admin}/categories";
 
+    public const string Cart = $"{V1}/cart";
+
     public const string Status = $"{V1}/[controller]";
 }

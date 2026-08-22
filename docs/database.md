@@ -86,4 +86,9 @@ Catalog tables from Sprint 4:
 
 Optimistic concurrency uses PostgreSQL `xmin` (EF rowversion) on categories. Product lifecycle races (double approve) fail via invalid state transitions; child collections (images/variants) do not use `xmin` because it conflicts with aggregate updates.
 
-See [seller.md](seller.md), [notifications.md](notifications.md), and [catalog.md](catalog.md).
+Cart tables from Sprint 6:
+
+- `carts` — at most one per user (`user_id` UNIQUE); FK to `users` Restrict
+- `cart_items` — FK cascade from cart; FKs to `products` / `product_variants` Restrict; filtered unique indexes one line per product (no variant) and one line per product+variant; `xmin` rowversion; quantity CHECKs `> 0` and `<= 99`
+
+See [seller.md](seller.md), [notifications.md](notifications.md), [catalog.md](catalog.md), and [cart.md](cart.md).

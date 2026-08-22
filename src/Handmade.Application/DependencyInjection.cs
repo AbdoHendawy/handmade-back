@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentValidation;
 using Handmade.Application.Abstractions.Identity;
+using Handmade.Application.Cart.Services;
 using Handmade.Application.Catalog.Services;
 using Handmade.Application.Identity.Services;
 using Handmade.Application.Notifications.Services;
@@ -30,6 +31,8 @@ public static class DependencyInjection
         services.AddScoped<ISellerProductService, SellerProductService>();
         services.AddScoped<IAdminProductService, AdminProductService>();
         services.AddScoped<IPublicCatalogService, PublicCatalogService>();
+        services.AddScoped<IProductPurchaseQuery, ProductPurchaseQuery>();
+        services.AddScoped<ICartService, CartService>();
 
         return services;
     }

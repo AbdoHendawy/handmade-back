@@ -77,6 +77,6 @@ Cross-seller access returns **404**. Admin is not a seller.
 
 ## Future
 
-Inventory hangs off `ProductVariant`. Cart/orders reference Product/Variant **IDs**, not slugs. Reviews reference Product. Search/cache can subscribe to `ProductApproved` later. Do not add Redis/OpenSearch in this module.
+Inventory hangs off `ProductVariant`. Cart/orders reference Product/Variant **IDs**, not slugs. Cart add/update goes through `IProductPurchaseQuery` (Published + active seller + variant rules) and does **not** reserve stock. Reviews reference Product. Search/cache can subscribe to `ProductApproved` later. Do not add Redis/OpenSearch in this module.
 
 Rejection currently stores the latest reason on Product (`RejectionReason`, `ReviewedBy`, `ReviewedAt`). A `ProductModerationEvent` table can be added later if resubmit history must be fully auditable.

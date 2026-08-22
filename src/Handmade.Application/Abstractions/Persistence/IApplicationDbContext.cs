@@ -1,8 +1,10 @@
+using Handmade.Domain.Cart;
 using Handmade.Domain.Catalog;
 using Handmade.Domain.Identity;
 using Handmade.Domain.Notifications;
 using Handmade.Domain.Seller;
 using Microsoft.EntityFrameworkCore;
+using CartEntity = Handmade.Domain.Cart.Cart;
 
 namespace Handmade.Application.Abstractions.Persistence;
 
@@ -31,6 +33,15 @@ public interface IApplicationDbContext
     DbSet<ProductImage> ProductImages { get; }
 
     DbSet<ProductVariant> ProductVariants { get; }
+
+    DbSet<CartEntity> Carts { get; }
+
+    DbSet<CartItem> CartItems { get; }
+
+    /// <summary>
+    /// Detaches tracked entities so a cart mutation can retry after a unique/concurrency conflict.
+    /// </summary>
+    void ClearTrackedEntities();
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -27,4 +27,7 @@ public static class CatalogErrorCodes
     public const string ConcurrencyConflict = "concurrency_conflict";
     public const string CategoryHasProducts = "category_in_use";
     public const string InvalidImageReorder = "invalid_image_reorder";
+    public const string ProductNotPurchasable = "product_not_purchasable";
+    public const string SellerNotActive = "seller_not_active";
+    public const string VariantRequired = "variant_required";
 }

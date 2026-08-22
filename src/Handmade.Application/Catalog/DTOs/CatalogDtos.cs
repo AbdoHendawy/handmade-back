@@ -107,3 +107,23 @@ public sealed record PublicProductResponse(
     CatalogSellerSummary Seller,
     IReadOnlyList<ProductImageResponse> Images,
     IReadOnlyList<ProductVariantResponse> Variants);
+
+public sealed record ProductPurchaseKey(Guid ProductId, Guid? VariantId);
+
+public sealed record ProductPurchaseInfo(
+    Guid ProductId,
+    Guid? VariantId,
+    bool Exists,
+    bool VariantExists,
+    bool HasVariants,
+    bool IsPublished,
+    bool IsSellerActive,
+    bool IsPurchasable,
+    string? UnavailabilityReason,
+    string Name,
+    string? VariantName,
+    string? ImageUrl,
+    decimal UnitPrice,
+    string Currency,
+    Guid SellerId,
+    string SellerName);

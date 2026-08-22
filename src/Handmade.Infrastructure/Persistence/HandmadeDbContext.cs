@@ -1,4 +1,5 @@
 using Handmade.Application.Abstractions.Persistence;
+using Handmade.Domain.Cart;
 using Handmade.Domain.Catalog;
 using Handmade.Domain.Identity;
 using Handmade.Domain.Notifications;
@@ -37,6 +38,12 @@ public sealed class HandmadeDbContext : DbContext, IApplicationDbContext
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
 
     public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+
+    public DbSet<Cart> Carts => Set<Cart>();
+
+    public DbSet<CartItem> CartItems => Set<CartItem>();
+
+    public void ClearTrackedEntities() => ChangeTracker.Clear();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
