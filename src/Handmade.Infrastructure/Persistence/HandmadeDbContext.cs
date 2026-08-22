@@ -1,5 +1,6 @@
 using Handmade.Application.Abstractions.Persistence;
 using Handmade.Domain.Identity;
+using Handmade.Domain.Notifications;
 using Handmade.Domain.Seller;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +26,8 @@ public sealed class HandmadeDbContext : DbContext, IApplicationDbContext
     public DbSet<SellerApplication> SellerApplications => Set<SellerApplication>();
 
     public DbSet<SellerProfile> SellerProfiles => Set<SellerProfile>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

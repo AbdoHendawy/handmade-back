@@ -43,6 +43,7 @@ public sealed class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "60");
         builder.UseSetting("Jwt:RefreshTokenExpirationDays", "14");
         builder.UseSetting("GoogleAuth:ClientId", string.Empty);
+        builder.UseSetting("Hangfire:Enabled", "false");
 
         builder.ConfigureTestServices(services =>
         {

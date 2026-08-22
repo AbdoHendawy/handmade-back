@@ -139,7 +139,7 @@ public sealed class AdminSellerService : IAdminSellerService
         _db.SellerProfiles.Add(profile);
         await _identityRoleService.AssignRoleAsync(application.UserId, RoleNames.Seller, cancellationToken);
         await SellerPersistence.SaveChangesAsync(_db, cancellationToken);
-        await _notifications.NotifyApplicationApprovedAsync(application.UserId, cancellationToken);
+        await _notifications.NotifyApplicationApprovedAsync(application.UserId, application.Id, cancellationToken);
 
         return SellerMapping.ToResponse(application);
     }
@@ -158,7 +158,7 @@ public sealed class AdminSellerService : IAdminSellerService
 
         application.Reject(adminId, request.Reason, _clock.UtcNow);
         await SellerPersistence.SaveChangesAsync(_db, cancellationToken);
-        await _notifications.NotifyApplicationRejectedAsync(application.UserId, cancellationToken);
+        await _notifications.NotifyApplicationRejectedAsync(application.UserId, application.Id, cancellationToken);
 
         return SellerMapping.ToResponse(application);
     }
@@ -215,7 +215,7 @@ public sealed class AdminSellerService : IAdminSellerService
         SellerProfile profile = await LoadTrackedProfileAsync(sellerId, cancellationToken);
         profile.Suspend(adminId, request.Reason, _clock.UtcNow);
         await SellerPersistence.SaveChangesAsync(_db, cancellationToken);
-        await _notifications.NotifySellerSuspendedAsync(profile.UserId, cancellationToken);
+        await _notifications.NotifySellerSuspendedAsync(profile.UserId, profile.Id, cancellationToken);
 
         return SellerMapping.ToResponse(profile);
     }
@@ -229,7 +229,7 @@ public sealed class AdminSellerService : IAdminSellerService
         SellerProfile profile = await LoadTrackedProfileAsync(sellerId, cancellationToken);
         profile.Reactivate(_clock.UtcNow);
         await SellerPersistence.SaveChangesAsync(_db, cancellationToken);
-        await _notifications.NotifySellerReactivatedAsync(profile.UserId, cancellationToken);
+        await _notifications.NotifySellerReactivatedAsync(profile.UserId, profile.Id, cancellationToken);
 
         return SellerMapping.ToResponse(profile);
     }

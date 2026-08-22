@@ -21,6 +21,8 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
     <PackageReference Include="Google.Apis.Auth" />
+    <PackageReference Include="Hangfire.AspNetCore" />
+    <PackageReference Include="Hangfire.PostgreSql" />
   </ItemGroup>
 
 </Project>

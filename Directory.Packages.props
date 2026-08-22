@@ -31,6 +31,10 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
 
+    <!-- Background jobs -->
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.21" />
+    <PackageVersion Include="Hangfire.PostgreSql" Version="1.20.12" />
+
     <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />

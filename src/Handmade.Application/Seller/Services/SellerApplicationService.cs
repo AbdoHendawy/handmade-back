@@ -74,7 +74,7 @@ public sealed class SellerApplicationService : ISellerApplicationService
 
         _db.SellerApplications.Add(application);
         await SellerPersistence.SaveChangesAsync(_db, cancellationToken);
-        await _notifications.NotifyApplicationSubmittedAsync(userId, cancellationToken);
+        await _notifications.NotifyApplicationSubmittedAsync(userId, application.Id, cancellationToken);
 
         return SellerMapping.ToResponse(application);
     }

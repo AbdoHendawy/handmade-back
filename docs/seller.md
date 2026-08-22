@@ -92,7 +92,7 @@ Raised on aggregates (not dispatched; no MediatR/Outbox in this sprint):
 | `SellerSuspended` | SellerId, UserId, SuspendedBy |
 | `SellerReactivated` | SellerId, UserId |
 
-Notifications use `IEmailSender` after commit, same as the welcome email.
+Notifications persist an in-app row then enqueue Hangfire delivery (SignalR + email). See [notifications.md](notifications.md).
 
 ## Endpoints
 

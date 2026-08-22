@@ -33,5 +33,9 @@ public static class ApiRoutes
 
     public const string AdminSellers = $"{Admin}/sellers";
 
+    public const string Notifications = $"{V1}/notifications";
+
+    public const string AdminNotifications = $"{Admin}/notifications";
+
     public const string Status = $"{V1}/[controller]";
 }

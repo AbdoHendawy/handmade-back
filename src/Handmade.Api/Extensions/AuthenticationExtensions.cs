@@ -5,6 +5,7 @@ using Handmade.Application.Abstractions.Identity;
 using Handmade.Application.Abstractions.Persistence;
 using Handmade.Application.Identity;
 using Handmade.Application.Identity.Services;
+using Handmade.Application.Notifications;
 using Handmade.Application.Seller;
 using Handmade.Domain.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -47,6 +48,18 @@ public static class AuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        string? accessToken = context.Request.Query["access_token"];
+                        PathString path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            path.StartsWithSegments(NotificationHubRoutes.Notifications))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     OnTokenValidated = async context =>
                     {
                         ClaimsPrincipal principal = context.Principal

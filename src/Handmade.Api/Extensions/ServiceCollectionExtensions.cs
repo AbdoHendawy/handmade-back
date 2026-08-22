@@ -1,10 +1,15 @@
 using System.Text.Json.Serialization;
 using Handmade.Api.Configuration;
 using Handmade.Api.Middleware;
+using Handmade.Api.Notifications;
 using Handmade.Application;
+using Handmade.Application.Abstractions.Notifications;
 using Handmade.Application.Common;
+using Handmade.Application.Notifications;
 using Handmade.Infrastructure;
+using Handmade.Infrastructure.Jobs;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
@@ -45,7 +50,16 @@ public static class ServiceCollectionExtensions
         services.AddHandmadeHealthChecks(configuration);
         services.AddHandmadeOpenApi();
         services.AddHandmadeAuthentication(configuration);
+        services.AddHandmadeRealtime();
 
+        return services;
+    }
+
+    private static IServiceCollection AddHandmadeRealtime(this IServiceCollection services)
+    {
+        services.AddSignalR();
+        services.AddSingleton<IUserIdProvider, JwtUserIdProvider>();
+        services.AddSingleton<IRealtimeNotificationSender, SignalRNotificationSender>();
         return services;
     }
 
@@ -75,7 +89,8 @@ public static class ServiceCollectionExtensions
                 policy
                     .WithOrigins(corsOptions.AllowedOrigins)
                     .AllowAnyHeader()
-                    .AllowAnyMethod();
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             });
         });
 
@@ -112,7 +127,7 @@ public static class ServiceCollectionExtensions
                 {
                     Title = ApplicationConstants.ApiName,
                     Version = "v1",
-                    Description = "Handmade Art & Crafts Gallery API with Identity, Authentication, and Seller onboarding. Use Authorize with a JWT from POST /api/v1/auth/login or /register."
+                    Description = "Handmade Art & Crafts Gallery API with Identity, Seller, and Notifications. Use Authorize with a JWT from POST /api/v1/auth/login or /register. SignalR hub: /hubs/notifications."
                 };
 
                 document.Components ??= new OpenApiComponents();
@@ -149,6 +164,7 @@ public static class ApplicationBuilderExtensions
         app.UseCors(CorsOptions.DefaultPolicyName);
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseHandmadeHangfireDashboard(app.Environment);
 
         if (app.Environment.IsDevelopment())
         {
@@ -180,6 +196,7 @@ public static class ApplicationBuilderExtensions
         });
 
         app.MapControllers();
+        app.MapHub<NotificationHub>(NotificationHubRoutes.Notifications);
 
         return app;
     }

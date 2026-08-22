@@ -1,0 +1,19 @@
+namespace Handmade.Domain.Notifications;
+
+/// <summary>
+/// Stable notification type codes. Other modules publish these; they are not SignalR contracts.
+/// </summary>
+public static class NotificationTypes
+{
+    public const string Welcome = "identity.welcome";
+
+    public const string SellerApplicationSubmitted = "seller.application.submitted";
+
+    public const string SellerApplicationApproved = "seller.application.approved";
+
+    public const string SellerApplicationRejected = "seller.application.rejected";
+
+    public const string SellerSuspended = "seller.suspended";
+
+    public const string SellerReactivated = "seller.reactivated";
+}

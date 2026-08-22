@@ -32,6 +32,17 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
+    public void Application_Should_Not_Reference_Hangfire_Or_SignalR()
+    {
+        TestResult result = Types.InAssembly(typeof(Handmade.Application.DependencyInjection).Assembly)
+            .ShouldNot()
+            .HaveDependencyOnAny("Hangfire", "Microsoft.AspNetCore.SignalR")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FormatFailures(result));
+    }
+
+    [Fact]
     public void Infrastructure_Should_Not_Depend_On_Api()
     {
         TestResult result = Types.InAssembly(typeof(Handmade.Infrastructure.DependencyInjection).Assembly)
@@ -50,7 +61,9 @@ public sealed class LayerDependencyTests
             .HaveDependencyOnAny(
                 "Microsoft.EntityFrameworkCore",
                 "Microsoft.AspNetCore",
-                "Npgsql")
+                "Npgsql",
+                "Hangfire",
+                "Microsoft.AspNetCore.SignalR")
             .GetResult();
 
         Assert.True(result.IsSuccessful, FormatFailures(result));

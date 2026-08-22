@@ -40,6 +40,8 @@
 | `/health` | Process liveness |
 | `/health/ready` | PostgreSQL readiness |
 | `/api/v1/status` | Version smoke check |
+| `/hubs/notifications` | SignalR (JWT `access_token` query or Bearer) |
+| `/hangfire` | Hangfire dashboard (Development only) |
 
 ## User secrets (optional)
 
@@ -51,7 +53,7 @@ dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Da
 
 | Kind of change | Location |
 |---|---|
-| Domain entity / rule | `Handmade.Domain` (Identity or Seller folders) |
+| Domain entity / rule | `Handmade.Domain` (Identity, Seller, or Notifications folders) |
 | Use case / validator / port | `Handmade.Application` |
 | EF config / external IO | `Handmade.Infrastructure` |
 | HTTP endpoint / middleware | `Handmade.Api` |

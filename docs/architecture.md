@@ -44,6 +44,7 @@ Features are vertical slices / folders inside the existing projects:
 |---|---|
 | Identity | User, roles, register, login, JWT, refresh tokens |
 | Seller | Applications, admin review, seller profile, Active/Suspended |
+| Notifications | Persistent inbox, Hangfire delivery, SignalR |
 | Catalog / Products | Future — should reference `SellerProfile.Id` |
 | Categories / Tags | Future |
 | Orders / Payments | Future |
@@ -51,7 +52,7 @@ Features are vertical slices / folders inside the existing projects:
 
 Do not extract microservices until a concrete scaling or team boundary requires it.
 
-See [identity.md](identity.md) and [seller.md](seller.md).
+See [identity.md](identity.md), [seller.md](seller.md), and [notifications.md](notifications.md).
 
 ## Request flow (future)
 

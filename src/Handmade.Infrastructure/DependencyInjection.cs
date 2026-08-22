@@ -9,6 +9,7 @@ using Handmade.Application.Identity.Services;
 using Handmade.Infrastructure.Identity.Authentication;
 using Handmade.Infrastructure.Identity.Email;
 using Handmade.Infrastructure.Identity.Security;
+using Handmade.Infrastructure.Jobs;
 using Handmade.Infrastructure.Persistence;
 using Handmade.Infrastructure.Persistence.Interceptors;
 using Handmade.Infrastructure.Services;
@@ -54,6 +55,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<HandmadeDbContext>());
+        services.AddHandmadeJobs(configuration);
 
         return services;
     }

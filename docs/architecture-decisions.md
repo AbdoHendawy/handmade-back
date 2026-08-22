@@ -150,7 +150,19 @@ Bearer JWT is a global security scheme so authenticated endpoints can be called 
 
 ## ADR-016: Welcome email — console + flag idempotency
 
-**Decision:** `IEmailSender` with Development `ConsoleEmailSender`; idempotency via `User.WelcomeEmailSent`. No Outbox table yet.
+**Decision:** `IEmailSender` with Development `ConsoleEmailSender`; Identity welcome-mail idempotency via `User.WelcomeEmailSent`. Seller (and future modules) persist an in-app `Notification` then send email from the Hangfire delivery job. No Outbox table yet.
 
-**Reason:** Avoid broker complexity; Outbox can be added later without redesigning Identity ports.
+**Reason:** Avoid broker complexity; Outbox can be added later without redesigning Identity or Notification ports.
+
+---
+
+## ADR-017: Notifications — persist first, Hangfire, SignalR last
+
+**Decision:** Notifications are a first-class module. SignalR is only a delivery adapter (`IRealtimeNotificationSender`). Hangfire is only a background adapter (`IBackgroundJobQueue`). The source of truth is the `notifications` table (read/unread + delivery status + unique idempotency key).
+
+**Lifecycle:** business use case → `INotificationPublisher` → `SaveChanges` → enqueue delivery → SignalR (+ optional email).
+
+**Reason:** Offline users still have an inbox; retries and failures are durable; other modules (Product, Order, Payment) can publish without referencing hubs or Hangfire.
+
+**Alternatives rejected:** firing SignalR from the HTTP request; treating Hangfire as the notification store; dispatching domain events in this sprint (still raised, still not dispatched).
 

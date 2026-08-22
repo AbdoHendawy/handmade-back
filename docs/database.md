@@ -71,6 +71,12 @@ Seller tables from Sprint 3:
 - `seller_applications` — application history; partial unique index one Pending per user; FKs to `users` (Restrict)
 - `seller_profiles` — at most one per user (`user_id` UNIQUE); FK to the source application (Restrict)
 
+Notification tables from Sprint 4.5:
+
+- `notifications` — per-user inbox; unique `idempotency_key`; FK to `users` (Cascade)
+
+Hangfire tables live in schema `hangfire` (created by Hangfire.PostgreSql, not EF).
+
 Optimistic concurrency uses PostgreSQL `xmin` (EF rowversion). It is a system column; do not treat it as application data.
 
-See [seller.md](seller.md).
+See [seller.md](seller.md) and [notifications.md](notifications.md).

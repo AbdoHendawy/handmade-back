@@ -13,6 +13,8 @@ Future resources (not all implemented yet):
 - `/api/v1/seller/profile`
 - `/api/v1/admin/seller-applications`
 - `/api/v1/admin/sellers`
+- `/api/v1/notifications`
+- `/api/v1/admin/notifications`
 - `/api/v1/artworks`
 - `/api/v1/categories`
 
