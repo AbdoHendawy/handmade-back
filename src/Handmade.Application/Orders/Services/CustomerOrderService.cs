@@ -1,5 +1,6 @@
 using Handmade.Application.Abstractions.Identity;
 using Handmade.Application.Abstractions.Persistence;
+using Handmade.Application.Abstractions.Time;
 using Handmade.Application.Common;
 using Handmade.Application.Orders.DTOs;
 using Handmade.Domain.Exceptions;
@@ -15,17 +16,27 @@ public interface ICustomerOrderService
         CancellationToken cancellationToken = default);
 
     Task<OrderGroupResponse> GetByIdAsync(Guid orderGroupId, CancellationToken cancellationToken = default);
+
+    Task<OrderResponse> CancelAsync(Guid orderId, CancellationToken cancellationToken = default);
 }
 
 public sealed class CustomerOrderService : ICustomerOrderService
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUser _currentUser;
+    private readonly IClock _clock;
+    private readonly IOrderNotificationService _notifications;
 
-    public CustomerOrderService(IApplicationDbContext db, ICurrentUser currentUser)
+    public CustomerOrderService(
+        IApplicationDbContext db,
+        ICurrentUser currentUser,
+        IClock clock,
+        IOrderNotificationService notifications)
     {
         _db = db;
         _currentUser = currentUser;
+        _clock = clock;
+        _notifications = notifications;
     }
 
     public async Task<PagedResult<OrderGroupListItemResponse>> ListMineAsync(
@@ -77,6 +88,49 @@ public sealed class CustomerOrderService : ICustomerOrderService
         return OrderMapping.ToGroupResponse(group, orders);
     }
 
+    public async Task<OrderResponse> CancelAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        Guid userId = RequireUserId();
+        Order order = await _db.Orders
+                          .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
+                      ?? throw NotFoundOrder(orderId);
+        if (order.CustomerId != userId)
+        {
+            throw NotFoundOrder(orderId);
+        }
+
+        order.Cancel(_clock.UtcNow);
+        await _db.SaveChangesAsync(cancellationToken);
+        await NotifySellerCancelledAsync(order, cancellationToken);
+        await RestoreItemsAsync(order, cancellationToken);
+        return OrderMapping.ToOrderResponse(order);
+    }
+
+    private async Task NotifySellerCancelledAsync(Order order, CancellationToken cancellationToken)
+    {
+        Guid? sellerUserId = await _db.SellerProfiles
+            .AsNoTracking()
+            .Where(profile => profile.Id == order.SellerId)
+            .Select(profile => (Guid?)profile.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (sellerUserId is null)
+        {
+            return;
+        }
+
+        await _notifications.NotifyCancelledAsync(order, sellerUserId.Value, cancellationToken);
+    }
+
+    private async Task RestoreItemsAsync(Order order, CancellationToken cancellationToken)
+    {
+        List<OrderItem> items = await _db.OrderItems
+            .AsNoTracking()
+            .Where(i => i.OrderId == order.Id)
+            .OrderBy(i => i.CreatedAt)
+            .ToListAsync(cancellationToken);
+        order.RestoreItems(items);
+    }
+
     private async Task<List<Order>> LoadOrdersAsync(IReadOnlyList<Guid> groupIds, CancellationToken cancellationToken)
     {
         List<Order> orders = await _db.Orders
@@ -114,5 +168,10 @@ public sealed class CustomerOrderService : ICustomerOrderService
     private static NotFoundException NotFound(Guid orderGroupId)
     {
         return new NotFoundException("OrderGroup", orderGroupId) { Code = OrderErrorCodes.OrderNotFound };
+    }
+
+    private static NotFoundException NotFoundOrder(Guid orderId)
+    {
+        return new NotFoundException("Order", orderId) { Code = OrderErrorCodes.OrderNotFound };
     }
 }

@@ -14,6 +14,16 @@ public interface IOrderNotificationService
         IReadOnlyList<Order> orders,
         IReadOnlyDictionary<Guid, Guid> sellerUserIds,
         CancellationToken cancellationToken = default);
+
+    Task NotifyConfirmedAsync(Order order, CancellationToken cancellationToken = default);
+
+    Task NotifyPreparingAsync(Order order, CancellationToken cancellationToken = default);
+
+    Task NotifyShippedAsync(Order order, CancellationToken cancellationToken = default);
+
+    Task NotifyDeliveredAsync(Order order, CancellationToken cancellationToken = default);
+
+    Task NotifyCancelledAsync(Order order, Guid recipientUserId, CancellationToken cancellationToken = default);
 }
 
 public sealed class OrderNotificationService : IOrderNotificationService
@@ -58,6 +68,90 @@ public sealed class OrderNotificationService : IOrderNotificationService
                 NotificationDataJson.Serialize(new { orderId = order.Id, orderGroupId = group.Id, number = order.Number }),
                 cancellationToken);
         }
+    }
+
+    public Task NotifyConfirmedAsync(Order order, CancellationToken cancellationToken = default)
+    {
+        return NotifyOrderAsync(
+            order,
+            order.CustomerId,
+            NotificationTypes.OrderConfirmed,
+            "Your Order Was Confirmed",
+            "The seller confirmed your order and will start preparing it.",
+            cancellationToken);
+    }
+
+    public Task NotifyPreparingAsync(Order order, CancellationToken cancellationToken = default)
+    {
+        return NotifyOrderAsync(
+            order,
+            order.CustomerId,
+            NotificationTypes.OrderPreparing,
+            "Your Order Is Being Prepared",
+            "The seller is preparing your order.",
+            cancellationToken);
+    }
+
+    public Task NotifyShippedAsync(Order order, CancellationToken cancellationToken = default)
+    {
+        return NotifyOrderAsync(
+            order,
+            order.CustomerId,
+            NotificationTypes.OrderShipped,
+            "Your Order Has Shipped",
+            "The seller has shipped your order.",
+            cancellationToken);
+    }
+
+    public Task NotifyDeliveredAsync(Order order, CancellationToken cancellationToken = default)
+    {
+        return NotifyOrderAsync(
+            order,
+            order.CustomerId,
+            NotificationTypes.OrderDelivered,
+            "Your Order Was Delivered",
+            "Your order has been marked as delivered.",
+            cancellationToken);
+    }
+
+    public Task NotifyCancelledAsync(
+        Order order,
+        Guid recipientUserId,
+        CancellationToken cancellationToken = default)
+    {
+        bool toCustomer = recipientUserId == order.CustomerId;
+        return NotifyOrderAsync(
+            order,
+            recipientUserId,
+            NotificationTypes.OrderCancelled,
+            toCustomer ? "Your Order Was Cancelled" : "An Order Was Cancelled",
+            toCustomer
+                ? "The seller cancelled your order."
+                : "A customer cancelled an order with your shop.",
+            cancellationToken);
+    }
+
+    private Task NotifyOrderAsync(
+        Order order,
+        Guid recipientUserId,
+        string type,
+        string title,
+        string body,
+        CancellationToken cancellationToken)
+    {
+        return TryPublishAsync(
+            recipientUserId,
+            type,
+            title,
+            body,
+            $"{type}:{order.Id:D}",
+            NotificationDataJson.Serialize(new
+            {
+                orderId = order.Id,
+                orderGroupId = order.OrderGroupId,
+                number = order.Number
+            }),
+            cancellationToken);
     }
 
     private async Task TryPublishAsync(

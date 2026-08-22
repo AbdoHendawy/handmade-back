@@ -10,4 +10,5 @@ public static class OrderErrorCodes
     public const string ConcurrencyConflict = "concurrency_conflict";
     public const string InvalidQuantity = "invalid_quantity";
     public const string SellerMismatch = "seller_mismatch";
+    public const string InvalidStatusTransition = "invalid_status_transition";
 }

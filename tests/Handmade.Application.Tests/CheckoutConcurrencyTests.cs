@@ -67,6 +67,7 @@ public sealed class CheckoutConcurrencyTests
                 null,
                 null),
             "EGP",
+            PaymentMethod.CashOnDelivery,
             Now);
         Product product = CreateProduct();
 
@@ -98,6 +99,7 @@ public sealed class CheckoutConcurrencyTests
                 null,
                 null),
             "EGP",
+            PaymentMethod.CashOnDelivery,
             Now);
 
         CheckoutConcurrencyAction action = CheckoutConcurrency.Decide(

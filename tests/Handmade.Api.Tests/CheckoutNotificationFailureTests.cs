@@ -56,7 +56,51 @@ public sealed class CheckoutNotificationFailureTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         OrderGroupResponse group = (await response.Content.ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
         Assert.Equal("Placed", group.Status);
+        Assert.Equal("CashOnDelivery", group.PaymentMethod);
         Assert.Single(group.Orders);
+    }
+
+    [Fact]
+    public async Task SellerConfirm_NotifyThrow_StillReturns200()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedOrder placed = await PlaceOrderAsync(client);
+        Authorize(client, placed.SellerToken);
+
+        HttpResponseMessage response = await client.PostAsync(
+            $"/api/v1/seller/orders/{placed.OrderId}/confirm",
+            null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        OrderResponse order = (await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions))!;
+        Assert.Equal("Confirmed", order.Status);
+    }
+
+    [Fact]
+    public async Task CustomerCancel_NotifyThrow_StillReturns200()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedOrder placed = await PlaceOrderAsync(client);
+        Authorize(client, placed.CustomerToken);
+
+        HttpResponseMessage response = await client.PostAsync($"/api/v1/orders/{placed.OrderId}/cancel", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        OrderResponse order = (await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions))!;
+        Assert.Equal("Cancelled", order.Status);
+    }
+
+    [Fact]
+    public async Task SellerCancel_NotifyThrow_StillReturns200()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedOrder placed = await PlaceOrderAsync(client);
+        Authorize(client, placed.SellerToken);
+
+        HttpResponseMessage response = await client.PostAsync(
+            $"/api/v1/seller/orders/{placed.OrderId}/cancel",
+            null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        OrderResponse order = (await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions))!;
+        Assert.Equal("Cancelled", order.Status);
     }
 
     private async Task<PublishedProduct> PublishProductAsync(HttpClient client)
@@ -105,7 +149,34 @@ public sealed class CheckoutNotificationFailureTests
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/v1/seller/products/{product.Id}/submit", null)).StatusCode);
         Authorize(client, admin.AccessToken);
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/v1/admin/products/{product.Id}/approve", null)).StatusCode);
-        return new PublishedProduct(product.Id);
+        return new PublishedProduct(product.Id, sellerUser.AccessToken);
+    }
+
+    private async Task<PlacedOrder> PlaceOrderAsync(HttpClient client)
+    {
+        PublishedProduct product = await PublishProductAsync(client);
+        AuthenticationResponse customer = await RegisterAsync(client);
+        Authorize(client, customer.AccessToken);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await client.PostAsJsonAsync(
+                "/api/v1/cart/items",
+                new AddCartItemRequest(product.Id, null, 1))).StatusCode);
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/v1/checkout",
+            new CheckoutRequest(
+                "Nour Hassan",
+                "+201001234567",
+                "12 Nile Street",
+                null,
+                "Cairo",
+                "Cairo",
+                null,
+                null));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        OrderGroupResponse group = (await response.Content.ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
+        return new PlacedOrder(Assert.Single(group.Orders).Id, customer.AccessToken, product.SellerToken);
     }
 
     private static async Task<AuthenticationResponse> RegisterAsync(HttpClient client)
@@ -122,7 +193,9 @@ public sealed class CheckoutNotificationFailureTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
     }
 
-    private sealed record PublishedProduct(Guid Id);
+    private sealed record PublishedProduct(Guid Id, string SellerToken);
+
+    private sealed record PlacedOrder(Guid OrderId, string CustomerToken, string SellerToken);
 }
 
 public sealed class ThrowingNotificationApiFactory : HandmadeApiFactory

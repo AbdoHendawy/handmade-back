@@ -31,6 +31,7 @@ public sealed class OrderGroupConfiguration : IEntityTypeConfiguration<OrderGrou
         builder.Property(x => x.Number).Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(x => x.Currency).HasMaxLength(3).IsRequired();
         builder.Property(x => x.Subtotal).HasPrecision(CatalogMoney.Precision, CatalogMoney.Scale).IsRequired();
         builder.Property(x => x.Total).HasPrecision(CatalogMoney.Precision, CatalogMoney.Scale).IsRequired();

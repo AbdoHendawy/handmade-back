@@ -12,6 +12,10 @@ using Handmade.Application.Seller.DTOs;
 using Handmade.Domain.Identity;
 using Handmade.Domain.Notifications;
 using Handmade.Domain.Orders;
+using Handmade.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Handmade.Api.Tests;
 
@@ -44,6 +48,44 @@ public sealed class OrderEndpointTests
             HttpStatusCode.Unauthorized,
             (await client.PostAsJsonAsync("/api/v1/checkout", Delivery)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/orders")).StatusCode);
+        Guid orderId = Guid.CreateVersion7();
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            (await client.PostAsync($"/api/v1/orders/{orderId}/cancel", null)).StatusCode);
+        foreach (string action in new[] { "confirm", "prepare", "ship", "deliver", "cancel" })
+        {
+            Assert.Equal(
+                HttpStatusCode.Unauthorized,
+                (await client.PostAsync($"/api/v1/seller/orders/{orderId}/{action}", null)).StatusCode);
+        }
+    }
+
+    [Fact]
+    public void PaymentMethod_IsMappedAsRequiredStringOnOrderGroup()
+    {
+        _ = _factory.CreateMigratedClient();
+        using IServiceScope scope = _factory.Services.CreateScope();
+        HandmadeDbContext db = scope.ServiceProvider.GetRequiredService<HandmadeDbContext>();
+        IProperty property = db.Model
+            .FindEntityType(typeof(OrderGroup))!
+            .FindProperty(nameof(OrderGroup.PaymentMethod))!;
+
+        Assert.False(property.IsNullable);
+        Assert.Equal(typeof(PaymentMethod), property.ClrType);
+        Assert.Equal(32, property.GetMaxLength());
+        Assert.Equal("character varying(32)", property.GetColumnType());
+        Assert.Null(db.Model.FindEntityType(typeof(Order))!.FindProperty("PaymentMethod"));
+    }
+
+    [Fact]
+    public async Task OnlinePaymentEndpoints_DoNotExist()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/v1/payments")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/v1/payments", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/v1/payment")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/v1/checkout/payment", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/v1/payment/webhook", null)).StatusCode);
     }
 
     [Fact]
@@ -97,6 +139,7 @@ public sealed class OrderEndpointTests
         Assert.Equal(310m, group.Subtotal);
         Assert.Equal(group.Subtotal, group.Total);
         Assert.Equal("Placed", group.Status);
+        Assert.Equal("CashOnDelivery", group.PaymentMethod);
         Assert.True(group.Number > 0);
         Assert.Contains(group.Orders, o => o.SellerId == first.SellerId && o.Items[0].UnitPrice == 120m);
         Assert.Contains(group.Orders, o => o.SellerId == second.SellerId);
@@ -112,6 +155,7 @@ public sealed class OrderEndpointTests
         OrderGroupResponse loaded = (await (await client.GetAsync($"/api/v1/orders/{group.Id}")).Content
             .ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
         Assert.Equal(group.Id, loaded.Id);
+        Assert.Equal("CashOnDelivery", loaded.PaymentMethod);
         Assert.Equal(120m, loaded.Orders.Single(o => o.SellerId == first.SellerId).Items[0].UnitPrice);
 
         Authorize(client, first.SellerToken);
@@ -256,6 +300,378 @@ public sealed class OrderEndpointTests
     }
 
     [Fact]
+    public async Task Seller_CanWalkLifecycle_AndStatusPersists()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Guid orderId = placed.Order.Id;
+        Authorize(client, placed.Product.SellerToken);
+
+        Assert.Equal("Confirmed", (await TransitionAsync(client, orderId, "confirm")).Status);
+        Assert.Equal("Confirmed", (await GetSellerOrderAsync(client, orderId)).Status);
+        Assert.Equal("Preparing", (await TransitionAsync(client, orderId, "prepare")).Status);
+        Assert.Equal("Shipped", (await TransitionAsync(client, orderId, "ship")).Status);
+        Assert.Equal("Delivered", (await TransitionAsync(client, orderId, "deliver")).Status);
+        Assert.Equal("Delivered", (await GetSellerOrderAsync(client, orderId)).Status);
+
+        Authorize(client, placed.CustomerToken);
+        OrderGroupResponse group = (await (await client.GetAsync($"/api/v1/orders/{placed.GroupId}")).Content
+            .ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
+        Assert.Equal("Placed", group.Status);
+        Assert.Equal("Delivered", Assert.Single(group.Orders).Status);
+    }
+
+    [Fact]
+    public async Task MultiSeller_OrdersAdvanceIndependently_GroupStaysPlaced()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedMultiSellerOrder placed = await PlaceMultiSellerOrderAsync(client);
+
+        Authorize(client, placed.First.SellerToken);
+        await TransitionAsync(client, placed.FirstOrder.Id, "confirm");
+        await TransitionAsync(client, placed.FirstOrder.Id, "prepare");
+        Assert.Equal("Shipped", (await TransitionAsync(client, placed.FirstOrder.Id, "ship")).Status);
+
+        Authorize(client, placed.Second.SellerToken);
+        await TransitionAsync(client, placed.SecondOrder.Id, "confirm");
+        Assert.Equal("Preparing", (await TransitionAsync(client, placed.SecondOrder.Id, "prepare")).Status);
+
+        Authorize(client, placed.CustomerToken);
+        OrderGroupResponse group = (await (await client.GetAsync($"/api/v1/orders/{placed.GroupId}")).Content
+            .ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
+        Assert.Equal("Placed", group.Status);
+        Assert.Equal("Shipped", group.Orders.Single(o => o.Id == placed.FirstOrder.Id).Status);
+        Assert.Equal("Preparing", group.Orders.Single(o => o.Id == placed.SecondOrder.Id).Status);
+
+        Authorize(client, placed.First.SellerToken);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.PostAsync($"/api/v1/seller/orders/{placed.SecondOrder.Id}/ship", null)).StatusCode);
+        Assert.Equal("Shipped", (await GetSellerOrderAsync(client, placed.FirstOrder.Id)).Status);
+
+        Authorize(client, placed.Second.SellerToken);
+        Assert.Equal("Preparing", (await GetSellerOrderAsync(client, placed.SecondOrder.Id)).Status);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/seller/orders/{placed.FirstOrder.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task MultiSeller_CustomerCancelOneOrder_LeavesSiblingUnchanged()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedMultiSellerOrder placed = await PlaceMultiSellerOrderAsync(client);
+
+        Authorize(client, placed.Second.SellerToken);
+        await TransitionAsync(client, placed.SecondOrder.Id, "confirm");
+        await TransitionAsync(client, placed.SecondOrder.Id, "prepare");
+
+        Authorize(client, placed.CustomerToken);
+        HttpResponseMessage response = await client.PostAsync($"/api/v1/orders/{placed.FirstOrder.Id}/cancel", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        OrderGroupResponse group = (await (await client.GetAsync($"/api/v1/orders/{placed.GroupId}")).Content
+            .ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
+        Assert.Equal("Placed", group.Status);
+        Assert.Equal("Cancelled", group.Orders.Single(o => o.Id == placed.FirstOrder.Id).Status);
+        Assert.Equal("Preparing", group.Orders.Single(o => o.Id == placed.SecondOrder.Id).Status);
+
+        Authorize(client, placed.First.SellerToken);
+        Assert.Equal("Cancelled", (await GetSellerOrderAsync(client, placed.FirstOrder.Id)).Status);
+
+        Authorize(client, placed.Second.SellerToken);
+        Assert.Equal("Preparing", (await GetSellerOrderAsync(client, placed.SecondOrder.Id)).Status);
+    }
+
+    [Fact]
+    public async Task Seller_LifecycleTransitions_NotifyCustomerAfterSave()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Guid orderId = placed.Order.Id;
+        Authorize(client, placed.Product.SellerToken);
+
+        await TransitionAsync(client, orderId, "confirm");
+        await TransitionAsync(client, orderId, "prepare");
+        await TransitionAsync(client, orderId, "ship");
+        await TransitionAsync(client, orderId, "deliver");
+
+        Authorize(client, placed.CustomerToken);
+        PagedResult<NotificationResponse> customerInbox = await GetInboxAsync(client);
+        Assert.Contains(customerInbox.Items, n => n.Type == NotificationTypes.OrderPlaced);
+        Assert.Contains(customerInbox.Items, n => n.Type == NotificationTypes.OrderConfirmed);
+        Assert.Contains(customerInbox.Items, n => n.Type == NotificationTypes.OrderPreparing);
+        Assert.Contains(customerInbox.Items, n => n.Type == NotificationTypes.OrderShipped);
+        Assert.Contains(customerInbox.Items, n => n.Type == NotificationTypes.OrderDelivered);
+        Assert.DoesNotContain(customerInbox.Items, n => n.Type == NotificationTypes.OrderReceived);
+
+        Authorize(client, placed.Product.SellerToken);
+        PagedResult<NotificationResponse> sellerInbox = await GetInboxAsync(client);
+        Assert.Contains(sellerInbox.Items, n => n.Type == NotificationTypes.OrderReceived);
+        Assert.DoesNotContain(sellerInbox.Items, n => n.Type == NotificationTypes.OrderConfirmed);
+        Assert.DoesNotContain(sellerInbox.Items, n => n.Type == NotificationTypes.OrderPreparing);
+        Assert.DoesNotContain(sellerInbox.Items, n => n.Type == NotificationTypes.OrderShipped);
+        Assert.DoesNotContain(sellerInbox.Items, n => n.Type == NotificationTypes.OrderDelivered);
+    }
+
+    [Fact]
+    public async Task Seller_Cancel_NotifiesCustomer()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Authorize(client, placed.Product.SellerToken);
+        await TransitionAsync(client, placed.Order.Id, "cancel");
+
+        Authorize(client, placed.CustomerToken);
+        PagedResult<NotificationResponse> customerInbox = await GetInboxAsync(client);
+        NotificationResponse cancelled = Assert.Single(
+            customerInbox.Items,
+            n => n.Type == NotificationTypes.OrderCancelled);
+        Assert.Contains(placed.Order.Id.ToString("D"), cancelled.DataJson, StringComparison.OrdinalIgnoreCase);
+
+        Authorize(client, placed.Product.SellerToken);
+        PagedResult<NotificationResponse> sellerInbox = await GetInboxAsync(client);
+        Assert.DoesNotContain(sellerInbox.Items, n => n.Type == NotificationTypes.OrderCancelled);
+    }
+
+    [Fact]
+    public async Task Customer_Cancel_NotifiesSeller()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Authorize(client, placed.CustomerToken);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await client.PostAsync($"/api/v1/orders/{placed.Order.Id}/cancel", null)).StatusCode);
+
+        PagedResult<NotificationResponse> customerInbox = await GetInboxAsync(client);
+        Assert.DoesNotContain(customerInbox.Items, n => n.Type == NotificationTypes.OrderCancelled);
+
+        Authorize(client, placed.Product.SellerToken);
+        PagedResult<NotificationResponse> sellerInbox = await GetInboxAsync(client);
+        NotificationResponse cancelled = Assert.Single(
+            sellerInbox.Items,
+            n => n.Type == NotificationTypes.OrderCancelled);
+        Assert.Contains(placed.Order.Id.ToString("D"), cancelled.DataJson, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Seller_CanCancelOwnPlacedOrder()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Authorize(client, placed.Product.SellerToken);
+
+        OrderResponse cancelled = await TransitionAsync(client, placed.Order.Id, "cancel");
+        Assert.Equal("Cancelled", cancelled.Status);
+        Assert.Equal("Cancelled", (await GetSellerOrderAsync(client, placed.Order.Id)).Status);
+    }
+
+    [Fact]
+    public async Task InvalidSellerTransition_ReturnsConflict()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Authorize(client, placed.Product.SellerToken);
+
+        HttpResponseMessage response = await client.PostAsync(
+            $"/api/v1/seller/orders/{placed.Order.Id}/ship",
+            null);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(OrderErrorCodes.InvalidStatusTransition, await ReadCodeAsync(response));
+        Assert.Equal("Placed", (await GetSellerOrderAsync(client, placed.Order.Id)).Status);
+    }
+
+    [Theory]
+    [InlineData("confirm")]
+    [InlineData("prepare")]
+    [InlineData("ship")]
+    [InlineData("deliver")]
+    [InlineData("cancel")]
+    public async Task SellerTransition_UnknownAndCrossSeller_AreNotFound(string action)
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        PublishedProduct otherSeller = await PublishProductAsync(client, 18m, stock: 2);
+
+        Authorize(client, placed.Product.SellerToken);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.PostAsync($"/api/v1/seller/orders/{Guid.CreateVersion7()}/{action}", null)).StatusCode);
+
+        Authorize(client, otherSeller.SellerToken);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.PostAsync($"/api/v1/seller/orders/{placed.Order.Id}/{action}", null)).StatusCode);
+        Authorize(client, placed.Product.SellerToken);
+        Assert.Equal("Placed", (await GetSellerOrderAsync(client, placed.Order.Id)).Status);
+    }
+
+    [Theory]
+    [InlineData("confirm")]
+    [InlineData("prepare")]
+    [InlineData("ship")]
+    [InlineData("deliver")]
+    [InlineData("cancel")]
+    public async Task InactiveSeller_CannotTransitionOrder(string action)
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+
+        Authorize(client, placed.Product.AdminToken);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await client.PostAsJsonAsync(
+                $"/api/v1/admin/sellers/{placed.Product.SellerId}/suspend",
+                new SuspendSellerRequest("Policy violation"))).StatusCode);
+
+        Authorize(client, placed.Product.SellerToken);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await client.GetAsync($"/api/v1/seller/orders/{placed.Order.Id}")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await client.PostAsync($"/api/v1/seller/orders/{placed.Order.Id}/{action}", null)).StatusCode);
+    }
+
+    [Fact]
+    public async Task StaleOrderXmin_IsConcurrencyConflict()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+
+        using IServiceScope firstScope = _factory.Services.CreateScope();
+        using IServiceScope secondScope = _factory.Services.CreateScope();
+        HandmadeDbContext firstDb = firstScope.ServiceProvider.GetRequiredService<HandmadeDbContext>();
+        HandmadeDbContext secondDb = secondScope.ServiceProvider.GetRequiredService<HandmadeDbContext>();
+        Order first = await firstDb.Orders.SingleAsync(o => o.Id == placed.Order.Id);
+        Order second = await secondDb.Orders.SingleAsync(o => o.Id == placed.Order.Id);
+
+        first.Confirm(DateTimeOffset.UtcNow);
+        await firstDb.SaveChangesAsync();
+        second.Confirm(DateTimeOffset.UtcNow);
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => secondDb.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task Customer_CanCancelOwnPlacedOrder()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Authorize(client, placed.CustomerToken);
+
+        HttpResponseMessage response = await client.PostAsync(
+            $"/api/v1/orders/{placed.Order.Id}/cancel",
+            null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        OrderResponse cancelled = (await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions))!;
+        Assert.Equal("Cancelled", cancelled.Status);
+
+        Authorize(client, placed.Product.SellerToken);
+        Assert.Equal("Cancelled", (await GetSellerOrderAsync(client, placed.Order.Id)).Status);
+
+        Authorize(client, placed.CustomerToken);
+        OrderGroupResponse group = (await (await client.GetAsync($"/api/v1/orders/{placed.GroupId}")).Content
+            .ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
+        Assert.Equal("Placed", group.Status);
+        Assert.Equal("Cancelled", Assert.Single(group.Orders).Status);
+    }
+
+    [Fact]
+    public async Task CustomerCancel_UnknownAndOtherCustomer_AreNotFound()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        AuthenticationResponse other = await RegisterAsync(client);
+
+        Authorize(client, placed.CustomerToken);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.PostAsync($"/api/v1/orders/{Guid.CreateVersion7()}/cancel", null)).StatusCode);
+
+        Authorize(client, other.AccessToken);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.PostAsync($"/api/v1/orders/{placed.Order.Id}/cancel", null)).StatusCode);
+
+        Authorize(client, placed.Product.SellerToken);
+        Assert.Equal("Placed", (await GetSellerOrderAsync(client, placed.Order.Id)).Status);
+    }
+
+    [Theory]
+    [InlineData("confirm")]
+    [InlineData("confirm,prepare")]
+    [InlineData("confirm,prepare,ship")]
+    [InlineData("confirm,prepare,ship,deliver")]
+    public async Task CustomerCannotCancelAfterSellerAdvanced(string sellerActions)
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Authorize(client, placed.Product.SellerToken);
+        foreach (string action in sellerActions.Split(','))
+        {
+            await TransitionAsync(client, placed.Order.Id, action);
+        }
+
+        Authorize(client, placed.CustomerToken);
+        HttpResponseMessage response = await client.PostAsync(
+            $"/api/v1/orders/{placed.Order.Id}/cancel",
+            null);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(OrderErrorCodes.InvalidStatusTransition, await ReadCodeAsync(response));
+    }
+
+    [Fact]
+    public async Task SellerCannotCancelThroughCustomerEndpoint()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Authorize(client, placed.Product.SellerToken);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.PostAsync($"/api/v1/orders/{placed.Order.Id}/cancel", null)).StatusCode);
+        Assert.Equal("Placed", (await GetSellerOrderAsync(client, placed.Order.Id)).Status);
+    }
+
+    [Fact]
+    public async Task CustomerCannotUseSellerLifecycleCommands()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+        Authorize(client, placed.CustomerToken);
+
+        foreach (string action in new[] { "confirm", "prepare", "ship", "deliver" })
+        {
+            Assert.Equal(
+                HttpStatusCode.NotFound,
+                (await client.PostAsync($"/api/v1/orders/{placed.Order.Id}/{action}", null)).StatusCode);
+        }
+
+        Authorize(client, placed.Product.SellerToken);
+        Assert.Equal("Placed", (await GetSellerOrderAsync(client, placed.Order.Id)).Status);
+    }
+
+    [Fact]
+    public async Task StaleCustomerCancel_ThrowsDbUpdateConcurrencyException()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        PlacedSellerOrder placed = await PlaceSellerOrderAsync(client);
+
+        using IServiceScope firstScope = _factory.Services.CreateScope();
+        using IServiceScope secondScope = _factory.Services.CreateScope();
+        HandmadeDbContext firstDb = firstScope.ServiceProvider.GetRequiredService<HandmadeDbContext>();
+        HandmadeDbContext secondDb = secondScope.ServiceProvider.GetRequiredService<HandmadeDbContext>();
+        Order first = await firstDb.Orders.SingleAsync(o => o.Id == placed.Order.Id);
+        Order second = await secondDb.Orders.SingleAsync(o => o.Id == placed.Order.Id);
+
+        first.Cancel(DateTimeOffset.UtcNow);
+        await firstDb.SaveChangesAsync();
+        second.Cancel(DateTimeOffset.UtcNow);
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => secondDb.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task ConcurrentCheckouts_DoNotOversell()
     {
         HttpClient client = _factory.CreateMigratedClient();
@@ -295,7 +711,56 @@ public sealed class OrderEndpointTests
     {
         HttpResponseMessage response = await client.PostAsJsonAsync("/api/v1/checkout", Delivery);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
+        OrderGroupResponse group = (await response.Content.ReadFromJsonAsync<OrderGroupResponse>(JsonOptions))!;
+        Assert.Equal("CashOnDelivery", group.PaymentMethod);
+        return group;
+    }
+
+    private async Task<PlacedSellerOrder> PlaceSellerOrderAsync(HttpClient client)
+    {
+        PublishedProduct product = await PublishProductAsync(client, 15m, stock: 2);
+        AuthenticationResponse customer = await RegisterAsync(client);
+        Authorize(client, customer.AccessToken);
+        await AddAsync(client, product.Id, 1);
+        OrderGroupResponse group = await CheckoutAsync(client);
+        return new PlacedSellerOrder(product, customer.AccessToken, group.Id, group.Orders[0]);
+    }
+
+    private async Task<PlacedMultiSellerOrder> PlaceMultiSellerOrderAsync(HttpClient client)
+    {
+        PublishedProduct first = await PublishProductAsync(client, 15m, stock: 2);
+        PublishedProduct second = await PublishProductAsync(client, 20m, stock: 2);
+        AuthenticationResponse customer = await RegisterAsync(client);
+        Authorize(client, customer.AccessToken);
+        await AddAsync(client, first.Id, 1);
+        await AddAsync(client, second.Id, 1);
+        OrderGroupResponse group = await CheckoutAsync(client);
+        return new PlacedMultiSellerOrder(
+            first,
+            second,
+            customer.AccessToken,
+            group.Id,
+            group.Orders.Single(o => o.SellerId == first.SellerId),
+            group.Orders.Single(o => o.SellerId == second.SellerId));
+    }
+
+    private static async Task<PagedResult<NotificationResponse>> GetInboxAsync(HttpClient client)
+    {
+        return (await (await client.GetAsync("/api/v1/notifications")).Content
+            .ReadFromJsonAsync<PagedResult<NotificationResponse>>(JsonOptions))!;
+    }
+
+    private static async Task<OrderResponse> TransitionAsync(HttpClient client, Guid orderId, string action)
+    {
+        HttpResponseMessage response = await client.PostAsync($"/api/v1/seller/orders/{orderId}/{action}", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions))!;
+    }
+
+    private static async Task<OrderResponse> GetSellerOrderAsync(HttpClient client, Guid orderId)
+    {
+        return (await (await client.GetAsync($"/api/v1/seller/orders/{orderId}")).Content
+            .ReadFromJsonAsync<OrderResponse>(JsonOptions))!;
     }
 
     private static async Task<CartResponse> GetCartAsync(HttpClient client)
@@ -432,6 +897,20 @@ public sealed class OrderEndpointTests
     {
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
     }
+
+    private sealed record PlacedSellerOrder(
+        PublishedProduct Product,
+        string CustomerToken,
+        Guid GroupId,
+        OrderResponse Order);
+
+    private sealed record PlacedMultiSellerOrder(
+        PublishedProduct First,
+        PublishedProduct Second,
+        string CustomerToken,
+        Guid GroupId,
+        OrderResponse FirstOrder,
+        OrderResponse SecondOrder);
 
     private sealed record PublishedProduct(
         Guid Id,

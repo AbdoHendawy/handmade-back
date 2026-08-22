@@ -89,6 +89,33 @@ Admin collection endpoints use `PagingQuery` / `PagedResult<T>`:
 
 Query: `?page=1&pageSize=20`. Default page size 20, maximum 100. Do not invent per-endpoint pagination shapes.
 
+## Orders
+
+Customer (`[Authorize]`, identity from `ICurrentUser`):
+
+| Method | Path |
+|---|---|
+| POST | `/api/v1/checkout` |
+| GET | `/api/v1/orders` |
+| GET | `/api/v1/orders/{orderGroupId}` |
+| POST | `/api/v1/orders/{orderId}/cancel` |
+
+Seller (`SellerActive`):
+
+| Method | Path |
+|---|---|
+| GET | `/api/v1/seller/orders` |
+| GET | `/api/v1/seller/orders/{orderId}` |
+| POST | `/api/v1/seller/orders/{orderId}/confirm` |
+| POST | `/api/v1/seller/orders/{orderId}/prepare` |
+| POST | `/api/v1/seller/orders/{orderId}/ship` |
+| POST | `/api/v1/seller/orders/{orderId}/deliver` |
+| POST | `/api/v1/seller/orders/{orderId}/cancel` |
+
+Ownership is enforced in the application service. Unknown ids and another actor's order return **404** `order_not_found`. Invalid status transitions return **409** `invalid_status_transition`. Stale `xmin` on status writes is not caught in Orders; `GlobalExceptionHandler` maps `DbUpdateConcurrencyException` to **409** `concurrency_conflict`.
+
+There is no PATCH/PUT order-status endpoint and no payment route.
+
 ## Sorting / filtering (future)
 
 - `sort` comma-separated fields; prefix `-` for descending

@@ -22,7 +22,8 @@ public sealed class OrderGroup : AggregateRoot, IAuditable
         string customerLastName,
         string customerEmail,
         OrderDeliverySnapshot delivery,
-        string currency)
+        string currency,
+        PaymentMethod paymentMethod)
         : base(id)
     {
         CustomerId = customerId;
@@ -31,6 +32,7 @@ public sealed class OrderGroup : AggregateRoot, IAuditable
         CustomerEmail = customerEmail;
         ApplyDelivery(delivery);
         Status = OrderGroupStatus.Placed;
+        PaymentMethod = RequireSupported(paymentMethod);
         Currency = currency;
         Subtotal = 0m;
         Total = 0m;
@@ -39,6 +41,8 @@ public sealed class OrderGroup : AggregateRoot, IAuditable
     public Guid CustomerId { get; private set; }
 
     public OrderGroupStatus Status { get; private set; }
+
+    public PaymentMethod PaymentMethod { get; private set; }
 
     public long Number { get; private set; }
 
@@ -81,6 +85,7 @@ public sealed class OrderGroup : AggregateRoot, IAuditable
         string customerEmail,
         OrderDeliverySnapshot delivery,
         string currency,
+        PaymentMethod paymentMethod,
         DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(delivery);
@@ -97,7 +102,8 @@ public sealed class OrderGroup : AggregateRoot, IAuditable
             RequireName(customerLastName, "Customer last name is required."),
             RequireEmail(customerEmail),
             delivery,
-            CatalogMoney.RequireCurrency(currency));
+            CatalogMoney.RequireCurrency(currency),
+            paymentMethod);
 
         group.Raise(new OrderGroupPlaced(group.Id, customerId, now));
         return group;
@@ -169,6 +175,16 @@ public sealed class OrderGroup : AggregateRoot, IAuditable
         Governorate = delivery.Governorate;
         PostalCode = delivery.PostalCode;
         Notes = delivery.Notes;
+    }
+
+    private static PaymentMethod RequireSupported(PaymentMethod paymentMethod)
+    {
+        if (!Enum.IsDefined(paymentMethod))
+        {
+            throw new DomainException("Payment method is not supported.");
+        }
+
+        return paymentMethod;
     }
 
     private static string RequireName(string? value, string message)

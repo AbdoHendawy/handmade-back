@@ -2,7 +2,7 @@
 
 ASP.NET Core backend for the **Handmade** Art & Crafts Gallery platform.
 
-This repository is a **modular monolith** with Sprint 1 foundation, **Sprint 2 Identity & Authentication**, and **Sprint 3 Seller** (applications, admin review, seller profile, suspension).
+This repository is a **modular monolith**. Implemented slices: Sprint 1 foundation, Identity, Seller, Notifications, Catalog, Cart, and Orders (Cash on Delivery checkout plus per-seller lifecycle). Online payment is out of scope.
 
 ## Architecture
 
@@ -14,12 +14,12 @@ Domain ← Application ← Infrastructure
 
 | Project | Responsibility |
 |---|---|
-| `Handmade.Domain` | Entity bases, Identity and Seller aggregates, domain exceptions |
-| `Handmade.Application` | Auth and Seller use cases, validation, ports |
-| `Handmade.Infrastructure` | EF Core, PostgreSQL, Argon2, JWT, Google validator, email |
-| `Handmade.Api` | HTTP, auth middleware, OpenAPI, health, CORS |
+| `Handmade.Domain` | Entity bases, Identity, Seller, Catalog, Cart, Orders, Notifications |
+| `Handmade.Application` | Use cases, validation, ports |
+| `Handmade.Infrastructure` | EF Core, PostgreSQL, Argon2, JWT, Google validator, email, Hangfire |
+| `Handmade.Api` | HTTP, auth middleware, OpenAPI, health, CORS, SignalR |
 
-See [docs/architecture.md](docs/architecture.md), [docs/identity.md](docs/identity.md), [docs/seller.md](docs/seller.md), and [docs/architecture-decisions.md](docs/architecture-decisions.md).
+See [docs/architecture.md](docs/architecture.md), [docs/identity.md](docs/identity.md), [docs/seller.md](docs/seller.md), [docs/catalog.md](docs/catalog.md), [docs/cart.md](docs/cart.md), [docs/orders.md](docs/orders.md), [docs/notifications.md](docs/notifications.md), and [docs/architecture-decisions.md](docs/architecture-decisions.md).
 
 ## Prerequisites
 
@@ -80,7 +80,7 @@ dotnet ef database update \
   --startup-project src/Handmade.Api
 ```
 
-There is no empty schema. Sprint 2 added Identity; Sprint 3 added Seller tables. See [docs/database.md](docs/database.md).
+There is no empty schema. Identity, Seller, Notifications, Catalog, Cart, and Orders tables are created by migrations. See [docs/database.md](docs/database.md).
 
 ## Environment configuration
 
@@ -118,6 +118,10 @@ Handmade.sln
 - [Architecture decisions](docs/architecture-decisions.md)
 - [Identity](docs/identity.md)
 - [Seller](docs/seller.md)
+- [Catalog](docs/catalog.md)
+- [Cart](docs/cart.md)
+- [Orders](docs/orders.md)
+- [Notifications](docs/notifications.md)
 - [Development](docs/development.md)
 - [Database](docs/database.md)
 - [API guidelines](docs/api-guidelines.md)

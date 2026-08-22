@@ -26,4 +26,14 @@ public static class NotificationTypes
     public const string OrderPlaced = "order.placed";
 
     public const string OrderReceived = "order.received";
+
+    public const string OrderConfirmed = "order.confirmed";
+
+    public const string OrderPreparing = "order.preparing";
+
+    public const string OrderShipped = "order.shipped";
+
+    public const string OrderDelivered = "order.delivered";
+
+    public const string OrderCancelled = "order.cancelled";
 }

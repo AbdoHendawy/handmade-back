@@ -245,6 +245,49 @@ public sealed class Order : AggregateRoot, IAuditable
         Total = normalizedTotal;
     }
 
+    public void Confirm(DateTimeOffset now)
+    {
+        Transition(OrderStatus.Placed, OrderStatus.Confirmed);
+        Raise(new OrderConfirmed(Id, OrderGroupId, SellerId, CustomerId, now));
+    }
+
+    public void Prepare(DateTimeOffset now)
+    {
+        Transition(OrderStatus.Confirmed, OrderStatus.Preparing);
+        Raise(new OrderPreparing(Id, OrderGroupId, SellerId, CustomerId, now));
+    }
+
+    public void Ship(DateTimeOffset now)
+    {
+        Transition(OrderStatus.Preparing, OrderStatus.Shipped);
+        Raise(new OrderShipped(Id, OrderGroupId, SellerId, CustomerId, now));
+    }
+
+    public void Deliver(DateTimeOffset now)
+    {
+        Transition(OrderStatus.Shipped, OrderStatus.Delivered);
+        Raise(new OrderDelivered(Id, OrderGroupId, SellerId, CustomerId, now));
+    }
+
+    public void Cancel(DateTimeOffset now)
+    {
+        Transition(OrderStatus.Placed, OrderStatus.Cancelled);
+        Raise(new OrderCancelled(Id, OrderGroupId, SellerId, CustomerId, now));
+    }
+
+    private void Transition(OrderStatus expected, OrderStatus next)
+    {
+        if (Status != expected)
+        {
+            throw new ConflictException($"Order cannot move from {Status} to {next}.")
+            {
+                Code = OrderErrorCodes.InvalidStatusTransition
+            };
+        }
+
+        Status = next;
+    }
+
     private void RecalculateTotals()
     {
         decimal subtotal = SumLineTotals();

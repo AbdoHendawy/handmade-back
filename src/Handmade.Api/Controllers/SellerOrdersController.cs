@@ -38,4 +38,44 @@ public sealed class SellerOrdersController : ControllerBase
     {
         return Ok(await _orders.GetMineAsync(orderId, cancellationToken));
     }
+
+    /// <summary>Confirm an owned placed order.</summary>
+    [HttpPost("{orderId:guid}/confirm")]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<OrderResponse>> Confirm(Guid orderId, CancellationToken cancellationToken)
+    {
+        return Ok(await _orders.ConfirmAsync(orderId, cancellationToken));
+    }
+
+    /// <summary>Mark an owned confirmed order as preparing.</summary>
+    [HttpPost("{orderId:guid}/prepare")]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<OrderResponse>> Prepare(Guid orderId, CancellationToken cancellationToken)
+    {
+        return Ok(await _orders.PrepareAsync(orderId, cancellationToken));
+    }
+
+    /// <summary>Ship an owned preparing order.</summary>
+    [HttpPost("{orderId:guid}/ship")]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<OrderResponse>> Ship(Guid orderId, CancellationToken cancellationToken)
+    {
+        return Ok(await _orders.ShipAsync(orderId, cancellationToken));
+    }
+
+    /// <summary>Deliver an owned shipped order.</summary>
+    [HttpPost("{orderId:guid}/deliver")]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<OrderResponse>> Deliver(Guid orderId, CancellationToken cancellationToken)
+    {
+        return Ok(await _orders.DeliverAsync(orderId, cancellationToken));
+    }
+
+    /// <summary>Cancel an owned placed order.</summary>
+    [HttpPost("{orderId:guid}/cancel")]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<OrderResponse>> Cancel(Guid orderId, CancellationToken cancellationToken)
+    {
+        return Ok(await _orders.CancelAsync(orderId, cancellationToken));
+    }
 }

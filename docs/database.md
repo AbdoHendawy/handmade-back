@@ -91,12 +91,12 @@ Cart tables from Sprint 6:
 - `carts` — at most one per user (`user_id` UNIQUE); FK to `users` Restrict
 - `cart_items` — FK cascade from cart; FKs to `products` / `product_variants` Restrict; filtered unique indexes one line per product (no variant) and one line per product+variant; `xmin` rowversion; quantity CHECKs `> 0` and `<= 99`
 
-Order tables from Sprint 7 (`AddOrderModule`):
+Order tables from Sprint 7 (`AddOrderModule`), plus `order_groups.payment_method` (`AddOrderGroupPaymentMethod`). Sprint 8 added no new columns: lifecycle statuses reuse `orders.status` (`varchar(32)` string conversion). There is no CHECK that restricts `orders.status` to `Placed`. No PaymentStatus, PaymentTransaction, gateway, or lifecycle timestamp columns.
 
-- `order_groups` — identity `number`; FK `customer_id` → `users` Restrict; `xmin`
-- `orders` — identity `number`; FK `order_group_id` Cascade; FKs customer/seller Restrict; `xmin`
-- `order_items` — FK `order_id` Cascade; FKs product/variant/seller Restrict; `xmin`
+- `order_groups` — identity `number`; `status` (`Placed` only); `payment_method` (CashOnDelivery snapshot); customer/delivery snapshot fields; FK `customer_id` → `users` Restrict; `xmin`
+- `orders` — identity `number`; `status` (Placed / Confirmed / Preparing / Shipped / Delivered / Cancelled); seller/customer/delivery snapshot fields; FK `order_group_id` Cascade; FKs customer/seller Restrict; `xmin`
+- `order_items` — product/variant/seller snapshot fields; FK `order_id` Cascade; FKs product/variant/seller Restrict; `xmin`
 
-Optimistic concurrency uses PostgreSQL `xmin` on products and product_variants for inventory. Checkout retries once only when every conflicting entry is a Product/ProductVariant this attempt mutated.
+Optimistic concurrency uses PostgreSQL `xmin` on products and product_variants for **checkout inventory retry**. Status writes on `orders` also use `xmin`; stale seller/customer updates rethrow `DbUpdateConcurrencyException` (GlobalExceptionHandler 409 `concurrency_conflict`). That path is not the checkout inventory retry.
 
 See [seller.md](seller.md), [notifications.md](notifications.md), [catalog.md](catalog.md), [cart.md](cart.md), and [orders.md](orders.md).

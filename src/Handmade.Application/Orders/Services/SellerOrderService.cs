@@ -1,5 +1,6 @@
 using Handmade.Application.Abstractions.Identity;
 using Handmade.Application.Abstractions.Persistence;
+using Handmade.Application.Abstractions.Time;
 using Handmade.Application.Common;
 using Handmade.Application.Orders.DTOs;
 using Handmade.Domain.Exceptions;
@@ -16,17 +17,35 @@ public interface ISellerOrderService
         CancellationToken cancellationToken = default);
 
     Task<OrderResponse> GetMineAsync(Guid orderId, CancellationToken cancellationToken = default);
+
+    Task<OrderResponse> ConfirmAsync(Guid orderId, CancellationToken cancellationToken = default);
+
+    Task<OrderResponse> PrepareAsync(Guid orderId, CancellationToken cancellationToken = default);
+
+    Task<OrderResponse> ShipAsync(Guid orderId, CancellationToken cancellationToken = default);
+
+    Task<OrderResponse> DeliverAsync(Guid orderId, CancellationToken cancellationToken = default);
+
+    Task<OrderResponse> CancelAsync(Guid orderId, CancellationToken cancellationToken = default);
 }
 
 public sealed class SellerOrderService : ISellerOrderService
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUser _currentUser;
+    private readonly IClock _clock;
+    private readonly IOrderNotificationService _notifications;
 
-    public SellerOrderService(IApplicationDbContext db, ICurrentUser currentUser)
+    public SellerOrderService(
+        IApplicationDbContext db,
+        ICurrentUser currentUser,
+        IClock clock,
+        IOrderNotificationService notifications)
     {
         _db = db;
         _currentUser = currentUser;
+        _clock = clock;
+        _notifications = notifications;
     }
 
     public async Task<PagedResult<OrderResponse>> ListMineAsync(
@@ -67,6 +86,65 @@ public sealed class SellerOrderService : ISellerOrderService
 
         await RestoreItemsAsync([order], cancellationToken);
         return OrderMapping.ToOrderResponse(order);
+    }
+
+    public Task<OrderResponse> ConfirmAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        return TransitionAsync(orderId, (order, now) => order.Confirm(now), cancellationToken);
+    }
+
+    public Task<OrderResponse> PrepareAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        return TransitionAsync(orderId, (order, now) => order.Prepare(now), cancellationToken);
+    }
+
+    public Task<OrderResponse> ShipAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        return TransitionAsync(orderId, (order, now) => order.Ship(now), cancellationToken);
+    }
+
+    public Task<OrderResponse> DeliverAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        return TransitionAsync(orderId, (order, now) => order.Deliver(now), cancellationToken);
+    }
+
+    public Task<OrderResponse> CancelAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        return TransitionAsync(orderId, (order, now) => order.Cancel(now), cancellationToken);
+    }
+
+    private async Task<OrderResponse> TransitionAsync(
+        Guid orderId,
+        Action<Order, DateTimeOffset> transition,
+        CancellationToken cancellationToken)
+    {
+        SellerProfile seller = await RequireActiveSellerAsync(cancellationToken);
+        Order order = await _db.Orders
+                          .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
+                      ?? throw NotFound(orderId);
+        if (order.SellerId != seller.Id)
+        {
+            throw NotFound(orderId);
+        }
+
+        transition(order, _clock.UtcNow);
+        await _db.SaveChangesAsync(cancellationToken);
+        await NotifyLifecycleAsync(order, cancellationToken);
+        await RestoreItemsAsync([order], cancellationToken);
+        return OrderMapping.ToOrderResponse(order);
+    }
+
+    private Task NotifyLifecycleAsync(Order order, CancellationToken cancellationToken)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Confirmed => _notifications.NotifyConfirmedAsync(order, cancellationToken),
+            OrderStatus.Preparing => _notifications.NotifyPreparingAsync(order, cancellationToken),
+            OrderStatus.Shipped => _notifications.NotifyShippedAsync(order, cancellationToken),
+            OrderStatus.Delivered => _notifications.NotifyDeliveredAsync(order, cancellationToken),
+            OrderStatus.Cancelled => _notifications.NotifyCancelledAsync(order, order.CustomerId, cancellationToken),
+            _ => Task.CompletedTask
+        };
     }
 
     private async Task RestoreItemsAsync(IReadOnlyList<Order> orders, CancellationToken cancellationToken)

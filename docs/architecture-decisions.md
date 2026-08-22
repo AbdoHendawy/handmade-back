@@ -210,5 +210,30 @@ On `DbUpdateConcurrencyException`, checkout inspects `ex.Entries`:
 - Live Catalog price/stock via `IProductPurchaseQuery` / `IProductInventory`; cart `priceSnapshot` is never the order price
 - Notifications run only after successful SaveChanges; publisher failure still returns 201
 - `OrderItem` → Product/Variant FKs are Restrict so ordered catalog rows are not hard-deleted
+- Current MVP payment method is Cash on Delivery, snapshotted on `OrderGroup` only. Online payment is a separate future module/sprint; individual seller `Order` rows do not have `PaymentMethod`.
+
+---
+
+## ADR-021: Order owns seller lifecycle; OrderGroup stays Placed
+
+**Decision:** After checkout, fulfillment status lives on each seller `Order`. `OrderGroupStatus` remains `Placed` only. There is no OrderGroup confirm/prepare/ship/deliver/cancel API and no automatic group status roll-up.
+
+Valid `Order` flow: `Placed → Confirmed → Preparing → Shipped → Delivered`. Cancellation is `Placed → Cancelled` only. Invalid transitions throw `ConflictException` / `invalid_status_transition` (409).
+
+**Also decided:**
+
+- Seller (`SellerActive`) owns Confirm, Prepare, Ship, Deliver, and Cancel for its own `Order`. Cross-seller and unknown ids return 404.
+- Customer may cancel only their own `Order` while it is `Placed`. Customer cannot confirm, prepare, ship, or deliver.
+- Sibling Orders in one OrderGroup progress independently.
+- Cash on Delivery remains the only `PaymentMethod`. No Payment module, `PaymentStatus`, `PaymentTransaction`, refund, or online gateway.
+- Lifecycle notifications (`order.confirmed`, `order.preparing`, `order.shipped`, `order.delivered`, `order.cancelled`) publish through `IOrderNotificationService` after successful `SaveChangesAsync`. Publisher failure is logged and does not roll back the status change.
+- Status writes rely on `orders.xmin`. They do not use checkout inventory retry. Uncaught `DbUpdateConcurrencyException` maps to 409 `concurrency_conflict`.
+- Domain events remain Raise-only. No MediatR, event bus, generic repository, `IUnitOfWork`, or `BeginTransaction`.
+
+**Reason:** Multi-seller checkout already splits one OrderGroup into one Order per seller. Letting a seller mutate OrderGroup status would couple independent shops. Payment state is not OrderStatus.
+
+**Alternatives rejected:** synchronizing OrderGroup from child Orders; allowing cancel after confirmation; a Payment module in this sprint.
+
+---
 
 

@@ -195,6 +195,7 @@ public sealed class CheckoutService : ICheckoutService
             customer.Email,
             delivery,
             currency!,
+            PaymentMethod.CashOnDelivery,
             now);
 
         List<Order> orders = [];

@@ -53,7 +53,7 @@ dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Da
 
 | Kind of change | Location |
 |---|---|
-| Domain entity / rule | `Handmade.Domain` (Identity, Seller, Notifications, or Catalog folders) |
+| Domain entity / rule | `Handmade.Domain` (Identity, Seller, Notifications, Catalog, Cart, or Orders folders) |
 | Use case / validator / port | `Handmade.Application` |
 | EF config / external IO | `Handmade.Infrastructure` |
 | HTTP endpoint / middleware | `Handmade.Api` |

@@ -47,12 +47,14 @@ Trusted application workflows only. There is **no** public `POST /api/v1/notific
 ```csharp
 await _publisher.PublishToUserAsync(new CreateUserNotificationRequest(
     userId,
-    type: "order.paid",
-    title: "Payment received",
-    body: "Order #123 is paid.",
-    idempotencyKey: $"order.paid:{orderId:D}",
+    type: "order.confirmed",
+    title: "Your Order Was Confirmed",
+    body: "The seller confirmed your order and will start preparing it.",
+    idempotencyKey: $"order.confirmed:{orderId:D}",
     dataJson: """{"orderId":"..."}"""));
 ```
+
+`order.paid` is not implemented. Do not publish payment or refund types.
 
 `PublishToRoleAsync` fans out one persisted row per user in that role (`idempotencyPrefix:{userId}`).
 
@@ -151,7 +153,21 @@ Trusted create/list/update/delete for support workflows. Admin `POST` requires *
 | Identity | `identity.welcome` | After register / first Google create. Email remains ADR-016 (`WelcomeEmailSent`). |
 | Seller | `seller.application.submitted`, `.approved`, `.rejected`, `seller.suspended`, `seller.reactivated` | After business commit. `data` includes `applicationId` / `sellerId`. Rejection/suspension **reason** is included; reviewer ids are not. |
 | Catalog | `catalog.product.submitted`, `.approved`, `.rejected` | After product review. |
-| Orders | `order.placed`, `order.received` | After successful checkout SaveChanges. Failure still returns 201. |
+| Orders | `order.placed`, `order.received`, `order.confirmed`, `order.preparing`, `order.shipped`, `order.delivered`, `order.cancelled` | After successful `SaveChanges`. Failure is swallowed; HTTP still succeeds. |
+
+Orders use `IOrderNotificationService` (a thin wrapper over `INotificationPublisher`). See [orders.md](orders.md) for recipients and idempotency keys.
+
+| Type | Recipient | Idempotency |
+|---|---|---|
+| `order.placed` | Customer | `order.placed:{orderGroupId}` |
+| `order.received` | Seller (`SellerProfile.UserId`) | `order.received:{orderId}` |
+| `order.confirmed` | Customer | `order.confirmed:{orderId}` |
+| `order.preparing` | Customer | `order.preparing:{orderId}` |
+| `order.shipped` | Customer | `order.shipped:{orderId}` |
+| `order.delivered` | Customer | `order.delivered:{orderId}` |
+| `order.cancelled` | Customer when the seller cancels; seller when the customer cancels | `order.cancelled:{orderId}` |
+
+Lifecycle notifications run only after a successful status `SaveChangesAsync`. Invalid transitions and 404s do not notify. Domain events remain Raise-only. No MediatR or event bus.
 
 ## Database
 

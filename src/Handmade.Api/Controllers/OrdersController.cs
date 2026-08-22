@@ -39,4 +39,12 @@ public sealed class OrdersController : ControllerBase
     {
         return Ok(await _orders.GetByIdAsync(orderGroupId, cancellationToken));
     }
+
+    /// <summary>Cancel one of the authenticated customer's placed seller orders.</summary>
+    [HttpPost("{orderId:guid}/cancel")]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<OrderResponse>> Cancel(Guid orderId, CancellationToken cancellationToken)
+    {
+        return Ok(await _orders.CancelAsync(orderId, cancellationToken));
+    }
 }

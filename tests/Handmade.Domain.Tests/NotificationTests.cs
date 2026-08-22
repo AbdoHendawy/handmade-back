@@ -104,4 +104,28 @@ public sealed class NotificationTests
         Assert.False(notification.IsRead);
         Assert.Null(notification.ReadAt);
     }
+
+    [Fact]
+    public void OrderTypes_CoverLifecycle_WithoutPayment()
+    {
+        string[] orderTypes =
+        [
+            NotificationTypes.OrderPlaced,
+            NotificationTypes.OrderReceived,
+            NotificationTypes.OrderConfirmed,
+            NotificationTypes.OrderPreparing,
+            NotificationTypes.OrderShipped,
+            NotificationTypes.OrderDelivered,
+            NotificationTypes.OrderCancelled
+        ];
+
+        Assert.Equal("order.placed", NotificationTypes.OrderPlaced);
+        Assert.Equal("order.confirmed", NotificationTypes.OrderConfirmed);
+        Assert.Equal("order.cancelled", NotificationTypes.OrderCancelled);
+        Assert.All(orderTypes, type => Assert.StartsWith("order.", type));
+        Assert.DoesNotContain(orderTypes, type => type.Contains("paid", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(orderTypes, type => type.Contains("refund", StringComparison.OrdinalIgnoreCase));
+        Assert.Null(typeof(NotificationTypes).GetField("OrderPaid"));
+        Assert.Null(typeof(NotificationTypes).GetField("PaymentReceived"));
+    }
 }

@@ -34,7 +34,7 @@ Submit requires name, description (≥ 20 chars), active category, price ≥ 0, 
 
 ## Money
 
-`decimal` amount, 2 fractional digits, ISO 4217 `currency` (default **EGP**). No `float`/`double`. No promotions in this sprint. Product has a base price; variants may override with their own price (same currency recommended). Future cart/orders must **snapshot** name/price; they must not rely on live product rows.
+`decimal` amount, 2 fractional digits, ISO 4217 `currency` (default **EGP**). No `float`/`double`. No promotions in this sprint. Product has a base price; variants may override with their own price (same currency recommended). Cart and Orders **snapshot** name/price at checkout; they must not rewrite those snapshots from live product rows.
 
 ## Images
 

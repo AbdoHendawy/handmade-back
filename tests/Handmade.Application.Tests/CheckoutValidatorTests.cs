@@ -31,6 +31,22 @@ public sealed class CheckoutValidatorTests
         Assert.Contains(exception.Errors, e => e.PropertyName == nameof(CheckoutRequest.City));
     }
 
+    [Fact]
+    public void CheckoutRequest_DoesNotAcceptPaymentMethod()
+    {
+        Assert.DoesNotContain(
+            typeof(CheckoutRequest).GetProperties(),
+            property => property.Name.Contains("Payment", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void OrderGroupResponse_ExposesPaymentMethod()
+    {
+        Assert.Contains(
+            typeof(OrderGroupResponse).GetProperties(),
+            property => property.Name == nameof(OrderGroupResponse.PaymentMethod));
+    }
+
     private static CheckoutRequest Valid()
     {
         return new CheckoutRequest(

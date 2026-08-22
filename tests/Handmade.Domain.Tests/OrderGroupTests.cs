@@ -11,11 +11,30 @@ public sealed class OrderGroupTests
     private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
 
     [Fact]
+    public void Status_HasNoPublicSetter()
+    {
+        Assert.False(typeof(OrderGroup).GetProperty(nameof(OrderGroup.Status))!.SetMethod!.IsPublic);
+    }
+
+    [Fact]
+    public void HasNoSellerLifecycleMethods()
+    {
+        string[] names = ["Confirm", "Prepare", "Ship", "Deliver", "Cancel", "ConfirmOrderGroup"];
+        IEnumerable<string> methods = typeof(OrderGroup)
+            .GetMethods()
+            .Where(method => method.DeclaringType == typeof(OrderGroup))
+            .Select(method => method.Name);
+
+        Assert.DoesNotContain(methods, names.Contains);
+    }
+
+    [Fact]
     public void Create_StartsPlaced()
     {
         OrderGroup group = CreateGroup();
 
         Assert.Equal(OrderGroupStatus.Placed, group.Status);
+        Assert.Equal(PaymentMethod.CashOnDelivery, group.PaymentMethod);
         Assert.Equal(0, group.Number);
         Assert.Equal(0m, group.Subtotal);
         Assert.Equal(0m, group.Total);
@@ -42,6 +61,7 @@ public sealed class OrderGroupTests
             "nour@example.com",
             SampleDelivery(),
             "egp",
+            PaymentMethod.CashOnDelivery,
             Now);
 
         Assert.Equal("EGP", group.Currency);
@@ -67,6 +87,7 @@ public sealed class OrderGroupTests
             "nour@example.com",
             delivery,
             "EGP",
+            PaymentMethod.CashOnDelivery,
             Now);
 
         Assert.Equal("Nour Hassan", group.RecipientName);
@@ -132,6 +153,23 @@ public sealed class OrderGroupTests
         Assert.Equal(OrderErrorCodes.CurrencyMismatch, ex.Code);
     }
 
+    [Fact]
+    public void Create_RejectsUndefinedPaymentMethod()
+    {
+        DomainException ex = Assert.Throws<DomainException>(() =>
+            OrderGroup.Create(
+                CustomerId,
+                "Nour",
+                "Hassan",
+                "nour@example.com",
+                SampleDelivery(),
+                "EGP",
+                (PaymentMethod)99,
+                Now));
+
+        Assert.Equal("Payment method is not supported.", ex.Message);
+    }
+
     private static OrderGroup CreateGroup()
     {
         return OrderGroup.Create(
@@ -141,6 +179,7 @@ public sealed class OrderGroupTests
             "nour@example.com",
             SampleDelivery(),
             "EGP",
+            PaymentMethod.CashOnDelivery,
             Now);
     }
 
