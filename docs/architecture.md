@@ -47,12 +47,13 @@ Features are vertical slices / folders inside the existing projects:
 | Notifications | Persistent inbox, Hangfire delivery, SignalR |
 | Catalog / Products | Categories, products, images, variants, publishing |
 | Cart | Authenticated shopping cart, live price display, no inventory reservation |
-| Orders / Payments | Future |
+| Orders | Checkout, OrderGroup, one Order per seller, immutable snapshots |
+| Payments | Future |
 | Social / Collections | Future |
 
 Do not extract microservices until a concrete scaling or team boundary requires it.
 
-See [identity.md](identity.md), [seller.md](seller.md), [notifications.md](notifications.md), [catalog.md](catalog.md), and [cart.md](cart.md).
+See [identity.md](identity.md), [seller.md](seller.md), [notifications.md](notifications.md), [catalog.md](catalog.md), [cart.md](cart.md), and [orders.md](orders.md).
 
 ## Request flow (future)
 

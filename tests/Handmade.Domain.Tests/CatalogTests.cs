@@ -138,6 +138,135 @@ public sealed class CatalogTests
         Assert.Equal("New name", product.Name);
     }
 
+    [Fact]
+    public void Product_AndVariant_DefaultStockIsZero()
+    {
+        Product product = ReadyProduct();
+        ProductVariant variant = product.AddVariant("Small", "BRC-S", 100m, "EGP");
+        Assert.Equal(0, product.StockQuantity);
+        Assert.Equal(0, variant.StockQuantity);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(12)]
+    public void Product_SetStock_AcceptsNonNegative(int quantity)
+    {
+        Product product = ReadyProduct();
+        product.SetStock(quantity);
+        Assert.Equal(quantity, product.StockQuantity);
+    }
+
+    [Fact]
+    public void Product_SetStock_Negative_Throws()
+    {
+        Product product = ReadyProduct();
+        DomainException ex = Assert.Throws<DomainException>(() => product.SetStock(-1));
+        Assert.Equal(CatalogErrorCodes.InvalidStockQuantity, ex.Code);
+        Assert.Equal(0, product.StockQuantity);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(8)]
+    public void Variant_SetStock_AcceptsNonNegative(int quantity)
+    {
+        ProductVariant variant = ReadyProduct().AddVariant("Small", "BRC-S", 100m, "EGP");
+        variant.SetStock(quantity);
+        Assert.Equal(quantity, variant.StockQuantity);
+    }
+
+    [Fact]
+    public void Variant_SetStock_Negative_Throws()
+    {
+        ProductVariant variant = ReadyProduct().AddVariant("Small", "BRC-S", 100m, "EGP");
+        DomainException ex = Assert.Throws<DomainException>(() => variant.SetStock(-1));
+        Assert.Equal(CatalogErrorCodes.InvalidStockQuantity, ex.Code);
+        Assert.Equal(0, variant.StockQuantity);
+    }
+
+    [Fact]
+    public void Product_DecrementStock_ReducesQuantity()
+    {
+        Product product = ReadyProduct();
+        product.SetStock(10);
+        product.DecrementStock(4);
+        Assert.Equal(6, product.StockQuantity);
+    }
+
+    [Fact]
+    public void Variant_DecrementStock_ReducesQuantity()
+    {
+        ProductVariant variant = ReadyProduct().AddVariant("Small", "BRC-S", 100m, "EGP");
+        variant.SetStock(5);
+        variant.DecrementStock(5);
+        Assert.Equal(0, variant.StockQuantity);
+    }
+
+    [Fact]
+    public void Product_DecrementStock_Insufficient_Throws_AndDoesNotGoNegative()
+    {
+        Product product = ReadyProduct();
+        product.SetStock(2);
+        DomainException ex = Assert.Throws<DomainException>(() => product.DecrementStock(3));
+        Assert.Equal(CatalogErrorCodes.InsufficientStock, ex.Code);
+        Assert.Equal(2, product.StockQuantity);
+    }
+
+    [Fact]
+    public void Variant_DecrementStock_Insufficient_Throws_AndDoesNotGoNegative()
+    {
+        ProductVariant variant = ReadyProduct().AddVariant("Small", "BRC-S", 100m, "EGP");
+        variant.SetStock(1);
+        DomainException ex = Assert.Throws<DomainException>(() => variant.DecrementStock(2));
+        Assert.Equal(CatalogErrorCodes.InsufficientStock, ex.Code);
+        Assert.Equal(1, variant.StockQuantity);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Product_DecrementStock_NonPositive_Throws(int quantity)
+    {
+        Product product = ReadyProduct();
+        product.SetStock(4);
+        DomainException ex = Assert.Throws<DomainException>(() => product.DecrementStock(quantity));
+        Assert.Equal(CatalogErrorCodes.InvalidStockQuantity, ex.Code);
+        Assert.Equal(4, product.StockQuantity);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    public void Variant_DecrementStock_NonPositive_Throws(int quantity)
+    {
+        ProductVariant variant = ReadyProduct().AddVariant("Small", "BRC-S", 100m, "EGP");
+        variant.SetStock(4);
+        DomainException ex = Assert.Throws<DomainException>(() => variant.DecrementStock(quantity));
+        Assert.Equal(CatalogErrorCodes.InvalidStockQuantity, ex.Code);
+        Assert.Equal(4, variant.StockQuantity);
+    }
+
+    [Fact]
+    public void Product_SetStock_AllowedOnDraftRejectedAndPublished()
+    {
+        Product draft = ReadyProduct();
+        draft.SetStock(1);
+        Assert.Equal(1, draft.StockQuantity);
+
+        Product rejected = ReadyProduct();
+        rejected.Submit(Now);
+        rejected.Reject(Guid.CreateVersion7(), "Images are too dark for the gallery.", Now);
+        rejected.SetStock(2);
+        Assert.Equal(2, rejected.StockQuantity);
+
+        Product published = ReadyProduct();
+        published.Submit(Now);
+        published.Approve(Guid.CreateVersion7(), Now);
+        published.SetStock(3);
+        Assert.Equal(3, published.StockQuantity);
+    }
+
     private static Product ReadyProduct()
     {
         Product product = Product.Create(

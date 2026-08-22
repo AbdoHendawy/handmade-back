@@ -26,7 +26,13 @@ internal static class CatalogMapping
 
     public static ProductVariantResponse ToResponse(ProductVariant variant)
     {
-        return new ProductVariantResponse(variant.Id, variant.Name, variant.Sku, variant.Price, variant.Currency);
+        return new ProductVariantResponse(
+            variant.Id,
+            variant.Name,
+            variant.Sku,
+            variant.Price,
+            variant.Currency,
+            variant.StockQuantity);
     }
 
     public static ProductResponse ToResponse(
@@ -48,6 +54,7 @@ internal static class CatalogMapping
             product.Status.ToString(),
             product.Price,
             product.Currency,
+            product.StockQuantity,
             product.CreatedAt,
             product.UpdatedAt,
             product.PublishedAt,
@@ -76,6 +83,7 @@ internal static class CatalogMapping
             product.Description,
             product.Price,
             product.Currency,
+            product.StockQuantity,
             product.PublishedAt,
             new CatalogCategorySummary(category.Id, category.Name, category.Slug),
             new CatalogSellerSummary(seller.Id, seller.BusinessName),

@@ -169,4 +169,27 @@ public sealed class SellerProductsController : ControllerBase
         await _products.DeleteVariantAsync(id, variantId, cancellationToken);
         return NoContent();
     }
+
+    /// <summary>Set stock for a product that has no variants. Published listings may be restocked.</summary>
+    [HttpPut("{productId:guid}/stock")]
+    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ProductResponse>> SetStock(
+        Guid productId,
+        [FromBody] SetStockRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _products.SetStockAsync(productId, request, cancellationToken));
+    }
+
+    /// <summary>Set stock for a variant owned by the current seller.</summary>
+    [HttpPut("{productId:guid}/variants/{variantId:guid}/stock")]
+    [ProducesResponseType(typeof(ProductVariantResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ProductVariantResponse>> SetVariantStock(
+        Guid productId,
+        Guid variantId,
+        [FromBody] SetStockRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _products.SetVariantStockAsync(productId, variantId, request, cancellationToken));
+    }
 }

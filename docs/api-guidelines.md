@@ -21,6 +21,9 @@ Future resources (not all implemented yet):
 - `/api/v1/admin/products`
 - `/api/v1/admin/categories`
 - `/api/v1/cart`
+- `/api/v1/checkout`
+- `/api/v1/orders`
+- `/api/v1/seller/orders`
 - `/api/v1/artworks`
 - `/api/v1/categories`
 

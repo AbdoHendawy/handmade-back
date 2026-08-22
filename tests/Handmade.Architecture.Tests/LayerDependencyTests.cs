@@ -74,6 +74,19 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
+    public void OrdersDomain_Should_Not_Depend_On_Cart()
+    {
+        TestResult result = Types.InAssembly(typeof(Handmade.Domain.Common.Entity).Assembly)
+            .That()
+            .ResideInNamespaceStartingWith("Handmade.Domain.Orders")
+            .ShouldNot()
+            .HaveDependencyOn("Handmade.Domain.Cart")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FormatFailures(result));
+    }
+
+    [Fact]
     public void Domain_Should_Not_Reference_EfCore_Or_AspNetCore()
     {
         TestResult result = Types.InAssembly(typeof(Handmade.Domain.Common.Entity).Assembly)

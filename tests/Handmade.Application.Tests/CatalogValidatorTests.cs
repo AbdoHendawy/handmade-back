@@ -25,6 +25,26 @@ public sealed class CatalogValidatorTests
     }
 
     [Fact]
+    public async Task CreateProduct_NegativeStock_Fails()
+    {
+        CreateProductRequestValidator validator = new();
+        ValidationException exception = await Assert.ThrowsAsync<ValidationException>(
+            () => validator.ValidateAndThrowAsync(ValidProduct() with { StockQuantity = -1 }));
+
+        Assert.Contains(exception.Errors, e => e.PropertyName == nameof(CreateProductRequest.StockQuantity));
+    }
+
+    [Fact]
+    public async Task SetStock_Negative_Fails()
+    {
+        SetStockRequestValidator validator = new();
+        ValidationException exception = await Assert.ThrowsAsync<ValidationException>(
+            () => validator.ValidateAndThrowAsync(new SetStockRequest(-4)));
+
+        Assert.Contains(exception.Errors, e => e.PropertyName == nameof(SetStockRequest.StockQuantity));
+    }
+
+    [Fact]
     public async Task RejectProduct_ShortReason_Fails()
     {
         RejectProductRequestValidator validator = new();

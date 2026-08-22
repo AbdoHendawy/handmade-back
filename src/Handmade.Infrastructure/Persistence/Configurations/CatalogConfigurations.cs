@@ -36,11 +36,14 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 {
     public void Configure(EntityTypeBuilder<Product> builder)
     {
-        builder.ToTable("products");
+        builder.ToTable(
+            "products",
+            table => table.HasCheckConstraint("ck_products_stock_quantity_non_negative", "stock_quantity >= 0"));
         builder.HasKey(x => x.Id);
         builder.Ignore(x => x.DomainEvents);
         builder.Ignore(x => x.IsPublic);
         builder.Ignore(x => x.CanDelete);
+        builder.Property<uint>("xmin").IsRowVersion();
 
         builder.Property(x => x.Name).HasMaxLength(Product.NameMaxLength).IsRequired();
         builder.Property(x => x.Slug).HasMaxLength(Product.SlugMaxLength).IsRequired();
@@ -48,6 +51,7 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(x => x.Price).HasPrecision(CatalogMoney.Precision, CatalogMoney.Scale).IsRequired();
         builder.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+        builder.Property(x => x.StockQuantity).IsRequired().HasDefaultValue(0);
         builder.Property(x => x.RejectionReason).HasMaxLength(Product.RejectionReasonMaxLength);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();
@@ -108,13 +112,19 @@ public sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Produ
 {
     public void Configure(EntityTypeBuilder<ProductVariant> builder)
     {
-        builder.ToTable("product_variants");
+        builder.ToTable(
+            "product_variants",
+            table => table.HasCheckConstraint(
+                "ck_product_variants_stock_quantity_non_negative",
+                "stock_quantity >= 0"));
         builder.HasKey(x => x.Id);
+        builder.Property<uint>("xmin").IsRowVersion();
 
         builder.Property(x => x.Name).HasMaxLength(ProductVariant.NameMaxLength).IsRequired();
         builder.Property(x => x.Sku).HasMaxLength(ProductVariant.SkuMaxLength).IsRequired();
         builder.Property(x => x.Price).HasPrecision(CatalogMoney.Precision, CatalogMoney.Scale).IsRequired();
         builder.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+        builder.Property(x => x.StockQuantity).IsRequired().HasDefaultValue(0);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();
 

@@ -1,6 +1,6 @@
 # Cart
 
-Folder slice for the buyer's mutable shopping intent. Catalog remains the source of truth for product data. Orders (future) will store an immutable commercial snapshot.
+Folder slice for the buyer's mutable shopping intent. Catalog remains the source of truth for product data. Checkout stores an immutable commercial snapshot on OrderGroup / Order / OrderItem. See [orders.md](orders.md).
 
 ```
 User → Cart → CartItem → Product / ProductVariant
@@ -19,7 +19,7 @@ No row
   → DELETE /cart (clear items, keep cart row)
 ```
 
-Checkout (not this module) must **revalidate** product, seller, price, and stock before creating an order. Cart `priceSnapshot` is display-only and must not become the order price.
+Checkout revalidates product, seller, price, and stock before creating an order. Cart `priceSnapshot` is display-only and must not become the order price. Successful checkout deletes cart items and keeps the cart row.
 
 ## Ownership
 
@@ -33,7 +33,7 @@ A cart line is `(ProductId, VariantId?)`.
 - Products **without** variants must omit `variantId`.
 - Adding the same product/variant again increments quantity (max `99` per line).
 
-Multi-seller carts are allowed. Checkout may later split into seller-specific orders.
+Multi-seller carts are allowed. Checkout splits them into one Order per seller.
 
 ## Price
 

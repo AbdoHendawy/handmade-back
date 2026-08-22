@@ -22,4 +22,8 @@ public static class NotificationTypes
     public const string ProductApproved = "catalog.product.approved";
 
     public const string ProductRejected = "catalog.product.rejected";
+
+    public const string OrderPlaced = "order.placed";
+
+    public const string OrderReceived = "order.received";
 }

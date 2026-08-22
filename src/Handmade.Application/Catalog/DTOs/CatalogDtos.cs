@@ -36,7 +36,8 @@ public sealed record CreateProductRequest(
     Guid CategoryId,
     decimal Price,
     string? Currency,
-    string? Slug);
+    string? Slug,
+    int StockQuantity = 0);
 
 public sealed record UpdateProductRequest(
     string Name,
@@ -44,7 +45,8 @@ public sealed record UpdateProductRequest(
     Guid CategoryId,
     decimal Price,
     string? Currency,
-    string? Slug);
+    string? Slug,
+    int StockQuantity = 0);
 
 public sealed record RejectProductRequest(string Reason);
 
@@ -52,9 +54,11 @@ public sealed record AddProductImageRequest(string StorageKey, string? Url, int?
 
 public sealed record ReorderProductImagesRequest(IReadOnlyList<Guid> ImageIds);
 
-public sealed record CreateProductVariantRequest(string Name, string Sku, decimal Price, string? Currency);
+public sealed record CreateProductVariantRequest(string Name, string Sku, decimal Price, string? Currency, int StockQuantity = 0);
 
-public sealed record UpdateProductVariantRequest(string Name, string Sku, decimal Price, string? Currency);
+public sealed record UpdateProductVariantRequest(string Name, string Sku, decimal Price, string? Currency, int StockQuantity = 0);
+
+public sealed record SetStockRequest(int StockQuantity);
 
 public sealed record ProductImageResponse(
     Guid Id,
@@ -68,7 +72,8 @@ public sealed record ProductVariantResponse(
     string Name,
     string Sku,
     decimal Price,
-    string Currency);
+    string Currency,
+    int StockQuantity);
 
 public sealed record CatalogCategorySummary(Guid Id, string Name, string Slug);
 
@@ -84,6 +89,7 @@ public sealed record ProductResponse(
     string Status,
     decimal Price,
     string Currency,
+    int StockQuantity,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     DateTimeOffset? PublishedAt,
@@ -102,6 +108,7 @@ public sealed record PublicProductResponse(
     string Description,
     decimal Price,
     string Currency,
+    int StockQuantity,
     DateTimeOffset? PublishedAt,
     CatalogCategorySummary Category,
     CatalogSellerSummary Seller,
@@ -126,4 +133,6 @@ public sealed record ProductPurchaseInfo(
     decimal UnitPrice,
     string Currency,
     Guid SellerId,
-    string SellerName);
+    string SellerName,
+    string? Sku,
+    int AvailableStock);

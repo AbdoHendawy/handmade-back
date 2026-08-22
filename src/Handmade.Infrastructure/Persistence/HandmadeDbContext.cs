@@ -3,6 +3,7 @@ using Handmade.Domain.Cart;
 using Handmade.Domain.Catalog;
 using Handmade.Domain.Identity;
 using Handmade.Domain.Notifications;
+using Handmade.Domain.Orders;
 using Handmade.Domain.Seller;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,6 +43,12 @@ public sealed class HandmadeDbContext : DbContext, IApplicationDbContext
     public DbSet<Cart> Carts => Set<Cart>();
 
     public DbSet<CartItem> CartItems => Set<CartItem>();
+
+    public DbSet<OrderGroup> OrderGroups => Set<OrderGroup>();
+
+    public DbSet<Order> Orders => Set<Order>();
+
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     public void ClearTrackedEntities() => ChangeTracker.Clear();
 

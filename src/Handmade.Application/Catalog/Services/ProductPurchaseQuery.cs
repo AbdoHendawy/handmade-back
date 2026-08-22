@@ -155,6 +155,8 @@ public sealed class ProductPurchaseQuery : IProductPurchaseQuery
         string? reason = ResolveReason(product, seller, hasVariants, key.VariantId, variantExists);
         decimal unitPrice = variant?.Price ?? product.Price;
         string currency = variant?.Currency ?? product.Currency;
+        string? sku = hasVariants ? variant?.Sku : null;
+        int availableStock = hasVariants ? variant?.StockQuantity ?? 0 : product.StockQuantity;
 
         return new ProductPurchaseInfo(
             key.ProductId,
@@ -172,7 +174,9 @@ public sealed class ProductPurchaseQuery : IProductPurchaseQuery
             unitPrice,
             currency,
             product.SellerId,
-            seller?.BusinessName ?? string.Empty);
+            seller?.BusinessName ?? string.Empty,
+            sku,
+            availableStock);
     }
 
     private static string? ResolveReason(
@@ -223,6 +227,8 @@ public sealed class ProductPurchaseQuery : IProductPurchaseQuery
             UnitPrice: 0m,
             Currency: CatalogMoney.DefaultCurrency,
             SellerId: Guid.Empty,
-            SellerName: string.Empty);
+            SellerName: string.Empty,
+            Sku: null,
+            AvailableStock: 0);
     }
 }

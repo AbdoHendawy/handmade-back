@@ -91,4 +91,12 @@ Cart tables from Sprint 6:
 - `carts` — at most one per user (`user_id` UNIQUE); FK to `users` Restrict
 - `cart_items` — FK cascade from cart; FKs to `products` / `product_variants` Restrict; filtered unique indexes one line per product (no variant) and one line per product+variant; `xmin` rowversion; quantity CHECKs `> 0` and `<= 99`
 
-See [seller.md](seller.md), [notifications.md](notifications.md), [catalog.md](catalog.md), and [cart.md](cart.md).
+Order tables from Sprint 7 (`AddOrderModule`):
+
+- `order_groups` — identity `number`; FK `customer_id` → `users` Restrict; `xmin`
+- `orders` — identity `number`; FK `order_group_id` Cascade; FKs customer/seller Restrict; `xmin`
+- `order_items` — FK `order_id` Cascade; FKs product/variant/seller Restrict; `xmin`
+
+Optimistic concurrency uses PostgreSQL `xmin` on products and product_variants for inventory. Checkout retries once only when every conflicting entry is a Product/ProductVariant this attempt mutated.
+
+See [seller.md](seller.md), [notifications.md](notifications.md), [catalog.md](catalog.md), [cart.md](cart.md), and [orders.md](orders.md).

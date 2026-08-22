@@ -150,7 +150,8 @@ Trusted create/list/update/delete for support workflows. Admin `POST` requires *
 |---|---|---|
 | Identity | `identity.welcome` | After register / first Google create. Email remains ADR-016 (`WelcomeEmailSent`). |
 | Seller | `seller.application.submitted`, `.approved`, `.rejected`, `seller.suspended`, `seller.reactivated` | After business commit. `data` includes `applicationId` / `sellerId`. Rejection/suspension **reason** is included; reviewer ids are not. |
-| Catalog | `catalog.product.submitted`, `.approved`, `.rejected` | Already wired; not changed in this sprint. |
+| Catalog | `catalog.product.submitted`, `.approved`, `.rejected` | After product review. |
+| Orders | `order.placed`, `order.received` | After successful checkout SaveChanges. Failure still returns 201. |
 
 ## Database
 
@@ -191,4 +192,4 @@ CORS uses `Cors:AllowedOrigins` (Development default `http://localhost:4200`) wi
 
 ## Intentionally out of scope
 
-Outbox table, production Hangfire dashboard auth, push providers, notification templates localization, Product/Order publishers beyond what Catalog already calls.
+Outbox table, production Hangfire dashboard auth, push providers, notification templates localization.

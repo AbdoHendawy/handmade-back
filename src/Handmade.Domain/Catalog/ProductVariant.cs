@@ -32,6 +32,8 @@ public sealed class ProductVariant : Entity, IAuditable
 
     public string Currency { get; private set; } = CatalogMoney.DefaultCurrency;
 
+    public int StockQuantity { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -53,6 +55,16 @@ public sealed class ProductVariant : Entity, IAuditable
         Sku = RequireSku(sku);
         Price = CatalogMoney.RequireAmount(price);
         Currency = CatalogMoney.RequireCurrency(currency);
+    }
+
+    public void SetStock(int quantity)
+    {
+        StockQuantity = Product.RequireNonNegativeStock(quantity);
+    }
+
+    public void DecrementStock(int quantity)
+    {
+        StockQuantity = Product.ApplyDecrement(StockQuantity, quantity);
     }
 
     public static string RequireName(string name)

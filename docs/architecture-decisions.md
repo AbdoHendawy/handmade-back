@@ -190,4 +190,25 @@ Bearer JWT is a global security scheme so authenticated endpoints can be called 
 - Purchasability lives in Catalog (`IProductPurchaseQuery`): Published + active seller + variant rules
 - Concurrent add/update uses unique indexes, `xmin` on `cart_items`, and a single retry — not a second unit of work
 
+---
+
+## ADR-020: Checkout commits with one SaveChanges and classified xmin
+
+**Decision:** Checkout uses `IApplicationDbContext.SaveChangesAsync` as the only persistence boundary. There is no `OrderPersistence`, `IUnitOfWork`, or `BeginTransaction` wrapper.
+
+On `DbUpdateConcurrencyException`, checkout inspects `ex.Entries`:
+
+- Retry once, with a full graph rebuild, only when **every** conflicting entry is a `Product` or `ProductVariant` this checkout mutated for inventory
+- That same inventory xmin on attempt 2 maps to Orders `concurrency_conflict`
+- Conflicts on Cart, OrderGroup, Order, OrderItem, or unrelated entities are rethrown; GlobalExceptionHandler already returns 409
+
+**Reason:** Cart/Catalog persistence helpers map *all* xmin failures to a module conflict code. Copying that for checkout would hide retry classification and could convert unrelated races into Orders `concurrency_conflict`.
+
+**Also decided:**
+
+- One checkout → one OrderGroup → one Order per `SellerProfile`
+- Live Catalog price/stock via `IProductPurchaseQuery` / `IProductInventory`; cart `priceSnapshot` is never the order price
+- Notifications run only after successful SaveChanges; publisher failure still returns 201
+- `OrderItem` → Product/Variant FKs are Restrict so ordered catalog rows are not hard-deleted
+
 

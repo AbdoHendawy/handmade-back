@@ -58,6 +58,8 @@ public sealed class Product : AggregateRoot, IAuditable
 
     public string Currency { get; private set; } = CatalogMoney.DefaultCurrency;
 
+    public int StockQuantity { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -361,12 +363,57 @@ public sealed class Product : AggregateRoot, IAuditable
         _variants.Remove(variant);
     }
 
+    public void SetStock(int quantity)
+    {
+        EnsureEditable();
+        StockQuantity = RequireNonNegativeStock(quantity);
+    }
+
+    public void DecrementStock(int quantity)
+    {
+        StockQuantity = ApplyDecrement(StockQuantity, quantity);
+    }
+
     public void EnsureOwnedBy(Guid sellerId)
     {
         if (SellerId != sellerId)
         {
             throw new NotFoundException("Product", Id);
         }
+    }
+
+    internal static int RequireNonNegativeStock(int quantity)
+    {
+        if (quantity < 0)
+        {
+            throw new DomainException("Stock quantity cannot be negative.")
+            {
+                Code = CatalogErrorCodes.InvalidStockQuantity
+            };
+        }
+
+        return quantity;
+    }
+
+    internal static int ApplyDecrement(int current, int quantity)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("Quantity to decrement must be greater than zero.")
+            {
+                Code = CatalogErrorCodes.InvalidStockQuantity
+            };
+        }
+
+        if (quantity > current)
+        {
+            throw new DomainException("Not enough stock for this product.")
+            {
+                Code = CatalogErrorCodes.InsufficientStock
+            };
+        }
+
+        return current - quantity;
     }
 
     private void EnsureEditable()

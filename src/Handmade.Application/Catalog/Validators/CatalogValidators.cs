@@ -34,6 +34,7 @@ public sealed class CreateProductRequestValidator : AbstractValidator<CreateProd
         RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Currency).MaximumLength(3).When(x => x.Currency is not null);
         RuleFor(x => x.Slug).MaximumLength(Product.SlugMaxLength).When(x => x.Slug is not null);
+        RuleFor(x => x.StockQuantity).GreaterThanOrEqualTo(0);
     }
 }
 
@@ -47,6 +48,7 @@ public sealed class UpdateProductRequestValidator : AbstractValidator<UpdateProd
         RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Currency).MaximumLength(3).When(x => x.Currency is not null);
         RuleFor(x => x.Slug).MaximumLength(Product.SlugMaxLength).When(x => x.Slug is not null);
+        RuleFor(x => x.StockQuantity).GreaterThanOrEqualTo(0);
     }
 }
 
@@ -87,6 +89,7 @@ public sealed class CreateProductVariantRequestValidator : AbstractValidator<Cre
         RuleFor(x => x.Sku).NotEmpty().MaximumLength(ProductVariant.SkuMaxLength);
         RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Currency).MaximumLength(3).When(x => x.Currency is not null);
+        RuleFor(x => x.StockQuantity).GreaterThanOrEqualTo(0);
     }
 }
 
@@ -98,5 +101,14 @@ public sealed class UpdateProductVariantRequestValidator : AbstractValidator<Upd
         RuleFor(x => x.Sku).NotEmpty().MaximumLength(ProductVariant.SkuMaxLength);
         RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Currency).MaximumLength(3).When(x => x.Currency is not null);
+        RuleFor(x => x.StockQuantity).GreaterThanOrEqualTo(0);
+    }
+}
+
+public sealed class SetStockRequestValidator : AbstractValidator<SetStockRequest>
+{
+    public SetStockRequestValidator()
+    {
+        RuleFor(x => x.StockQuantity).GreaterThanOrEqualTo(0);
     }
 }

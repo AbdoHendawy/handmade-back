@@ -5,6 +5,7 @@ using Handmade.Application.Cart.Services;
 using Handmade.Application.Catalog.Services;
 using Handmade.Application.Identity.Services;
 using Handmade.Application.Notifications.Services;
+using Handmade.Application.Orders.Services;
 using Handmade.Application.Seller.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -32,7 +33,12 @@ public static class DependencyInjection
         services.AddScoped<IAdminProductService, AdminProductService>();
         services.AddScoped<IPublicCatalogService, PublicCatalogService>();
         services.AddScoped<IProductPurchaseQuery, ProductPurchaseQuery>();
+        services.AddScoped<IProductInventory, ProductInventory>();
         services.AddScoped<ICartService, CartService>();
+        services.AddScoped<ICheckoutService, CheckoutService>();
+        services.AddScoped<ICustomerOrderService, CustomerOrderService>();
+        services.AddScoped<ISellerOrderService, SellerOrderService>();
+        services.AddScoped<IOrderNotificationService, OrderNotificationService>();
 
         return services;
     }

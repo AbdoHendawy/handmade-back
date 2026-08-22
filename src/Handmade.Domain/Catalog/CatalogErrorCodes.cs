@@ -30,4 +30,6 @@ public static class CatalogErrorCodes
     public const string ProductNotPurchasable = "product_not_purchasable";
     public const string SellerNotActive = "seller_not_active";
     public const string VariantRequired = "variant_required";
+    public const string InsufficientStock = "insufficient_stock";
+    public const string InvalidStockQuantity = "invalid_stock_quantity";
 }

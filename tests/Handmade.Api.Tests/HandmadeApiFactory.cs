@@ -11,7 +11,7 @@ using Testcontainers.PostgreSql;
 
 namespace Handmade.Api.Tests;
 
-public sealed class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .WithDatabase("handmade_test")

@@ -71,6 +71,17 @@ public interface ISellerProductService
         CancellationToken cancellationToken = default);
 
     Task DeleteVariantAsync(Guid productId, Guid variantId, CancellationToken cancellationToken = default);
+
+    Task<ProductResponse> SetStockAsync(
+        Guid productId,
+        SetStockRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ProductVariantResponse> SetVariantStockAsync(
+        Guid productId,
+        Guid variantId,
+        SetStockRequest request,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class SellerProductService : ISellerProductService
@@ -85,6 +96,7 @@ public sealed class SellerProductService : ISellerProductService
     private readonly IValidator<ReorderProductImagesRequest> _reorderValidator;
     private readonly IValidator<CreateProductVariantRequest> _createVariantValidator;
     private readonly IValidator<UpdateProductVariantRequest> _updateVariantValidator;
+    private readonly IValidator<SetStockRequest> _stockValidator;
 
     public SellerProductService(
         IApplicationDbContext db,
@@ -96,7 +108,8 @@ public sealed class SellerProductService : ISellerProductService
         IValidator<AddProductImageRequest> imageValidator,
         IValidator<ReorderProductImagesRequest> reorderValidator,
         IValidator<CreateProductVariantRequest> createVariantValidator,
-        IValidator<UpdateProductVariantRequest> updateVariantValidator)
+        IValidator<UpdateProductVariantRequest> updateVariantValidator,
+        IValidator<SetStockRequest> stockValidator)
     {
         _db = db;
         _currentUser = currentUser;
@@ -108,6 +121,7 @@ public sealed class SellerProductService : ISellerProductService
         _reorderValidator = reorderValidator;
         _createVariantValidator = createVariantValidator;
         _updateVariantValidator = updateVariantValidator;
+        _stockValidator = stockValidator;
     }
 
     public async Task<PagedResult<ProductResponse>> ListMineAsync(
@@ -161,6 +175,7 @@ public sealed class SellerProductService : ISellerProductService
             request.Price,
             request.Currency ?? CatalogMoney.DefaultCurrency,
             _clock.UtcNow);
+        product.SetStock(request.StockQuantity);
 
         _db.Products.Add(product);
         await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
@@ -185,6 +200,7 @@ public sealed class SellerProductService : ISellerProductService
             request.Price,
             request.Currency ?? product.Currency);
         product.ReplaceSlug(slug);
+        product.SetStock(request.StockQuantity);
         await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
         return await MapAsync(product, seller, cancellationToken);
     }
@@ -376,6 +392,7 @@ public sealed class SellerProductService : ISellerProductService
             sku,
             request.Price,
             request.Currency ?? product.Currency);
+        variant.SetStock(request.StockQuantity);
         _db.ProductVariants.Add(variant);
         await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
         return CatalogMapping.ToResponse(variant);
@@ -396,6 +413,7 @@ public sealed class SellerProductService : ISellerProductService
         string sku = ProductVariant.RequireSku(request.Sku);
         await EnsureSkuUniqueAsync(sku, variant.Id, cancellationToken);
         variant.Update(request.Name, sku, request.Price, request.Currency ?? product.Currency);
+        variant.SetStock(request.StockQuantity);
         await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
         return CatalogMapping.ToResponse(variant);
     }
@@ -409,6 +427,35 @@ public sealed class SellerProductService : ISellerProductService
                                    ?? throw new NotFoundException("ProductVariant", variantId);
         _db.ProductVariants.Remove(variant);
         await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
+    }
+
+    public async Task<ProductResponse> SetStockAsync(
+        Guid productId,
+        SetStockRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        await ValidationBehavior.ValidateAndThrowAsync(request, [_stockValidator], cancellationToken);
+        (Product product, SellerProfile seller) = await LoadOwnedAsync(productId, cancellationToken);
+        product.SetStock(request.StockQuantity);
+        await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
+        return await MapAsync(product, seller, cancellationToken);
+    }
+
+    public async Task<ProductVariantResponse> SetVariantStockAsync(
+        Guid productId,
+        Guid variantId,
+        SetStockRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        await ValidationBehavior.ValidateAndThrowAsync(request, [_stockValidator], cancellationToken);
+        (Product product, _) = await LoadOwnedAsync(productId, cancellationToken, trackProduct: false);
+        product.AssertEditable();
+        ProductVariant variant = await _db.ProductVariants
+                                       .FirstOrDefaultAsync(v => v.Id == variantId && v.ProductId == product.Id, cancellationToken)
+                                   ?? throw new NotFoundException("ProductVariant", variantId);
+        variant.SetStock(request.StockQuantity);
+        await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
+        return CatalogMapping.ToResponse(variant);
     }
 
     private async Task<(Product Product, SellerProfile Seller)> LoadOwnedAsync(

@@ -45,11 +45,21 @@ public static class ApiRoutes
 
     public const string SellerProducts = $"{Seller}/products";
 
+    public const string SellerProductStock = $"{SellerProducts}/{{productId:guid}}/stock";
+
+    public const string SellerProductVariantStock = $"{SellerProducts}/{{productId:guid}}/variants/{{variantId:guid}}/stock";
+
     public const string AdminProducts = $"{Admin}/products";
 
     public const string AdminCategories = $"{Admin}/categories";
 
     public const string Cart = $"{V1}/cart";
+
+    public const string Checkout = $"{V1}/checkout";
+
+    public const string Orders = $"{V1}/orders";
+
+    public const string SellerOrders = $"{Seller}/orders";
 
     public const string Status = $"{V1}/[controller]";
 }
