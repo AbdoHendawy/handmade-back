@@ -1,6 +1,8 @@
 using FluentValidation;
 using Handmade.Application.Notifications.DTOs;
 
+// NotificationLimits lives in the parent namespace.
+
 namespace Handmade.Application.Notifications.Validators;
 
 public sealed class CreateInboxNotificationRequestValidator : AbstractValidator<CreateInboxNotificationRequest>

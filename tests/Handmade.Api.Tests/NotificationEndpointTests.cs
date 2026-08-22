@@ -126,6 +126,108 @@ public sealed class NotificationEndpointTests
         Assert.Equal(0, unread.Count);
     }
 
+    [Fact]
+    public async Task User_CanCreateGetUpdateAndDeleteOwnNotification()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        AuthenticationResponse user = await RegisterAsync(client);
+        Authorize(client, user.AccessToken);
+
+        HttpResponseMessage created = await client.PostAsJsonAsync(
+            "/api/v1/notifications",
+            new CreateInboxNotificationRequest("system.manual", "Hello", "Please review your shop.", null, null));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        NotificationResponse item = (await created.Content.ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+        Assert.Equal(user.User.Id, item.UserId);
+        Assert.Equal("Hello", item.Title);
+
+        NotificationResponse fetched = (await (await client.GetAsync($"/api/v1/notifications/{item.Id}")).Content
+            .ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+        Assert.Equal(item.Id, fetched.Id);
+
+        HttpResponseMessage updated = await client.PutAsJsonAsync(
+            $"/api/v1/notifications/{item.Id}",
+            new UpdateNotificationRequest("Updated", "New body", true, null));
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        NotificationResponse afterUpdate = (await updated.Content.ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+        Assert.Equal("Updated", afterUpdate.Title);
+        Assert.True(afterUpdate.IsRead);
+
+        HttpResponseMessage deleted = await client.DeleteAsync($"/api/v1/notifications/{item.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/notifications/{item.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task CannotUpdateOrDeleteAnotherUsersNotification()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        AuthenticationResponse owner = await RegisterAsync(client);
+        Authorize(client, owner.AccessToken);
+        NotificationResponse item = (await (await client.PostAsJsonAsync(
+            "/api/v1/notifications",
+            new CreateInboxNotificationRequest("system.manual", "Hello", "Body", null, null))).Content
+            .ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+
+        AuthenticationResponse other = await RegisterAsync(client);
+        Authorize(client, other.AccessToken);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/notifications/{item.Id}")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.PutAsJsonAsync(
+                $"/api/v1/notifications/{item.Id}",
+                new UpdateNotificationRequest("Hacked", "x", true, null))).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await client.DeleteAsync($"/api/v1/notifications/{item.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_CanCreateForUser_AndCustomerCannotUseAdminApi()
+    {
+        HttpClient client = _factory.CreateMigratedClient();
+        AuthenticationResponse target = await RegisterAsync(client);
+        AuthenticationResponse customer = await RegisterAsync(client);
+        Authorize(client, customer.AccessToken);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync(
+                "/api/v1/admin/notifications",
+                new AdminCreateNotificationRequest(
+                    "admin.broadcast",
+                    "Notice",
+                    "Hello",
+                    target.User.Id))).StatusCode);
+
+        AuthenticationResponse admin = await RegisterAsync(client);
+        await _factory.AssignRoleAsync(admin.User.Id, RoleNames.Admin);
+        AuthenticationResponse adminSession = (await (await client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new LoginRequest(admin.User.Email, "StrongPass1!"))).Content
+            .ReadFromJsonAsync<AuthenticationResponse>(JsonOptions))!;
+        Authorize(client, adminSession.AccessToken);
+
+        HttpResponseMessage created = await client.PostAsJsonAsync(
+            "/api/v1/admin/notifications",
+            new AdminCreateNotificationRequest(
+                "admin.broadcast",
+                "Notice",
+                "Hello from admin",
+                target.User.Id));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        NotificationResponse item = (await created.Content.ReadFromJsonAsync<NotificationResponse>(JsonOptions))!;
+        Assert.Equal(target.User.Id, item.UserId);
+
+        PagedResult<NotificationResponse> adminList = (await (await client.GetAsync(
+            $"/api/v1/admin/notifications?userId={target.User.Id}")).Content
+            .ReadFromJsonAsync<PagedResult<NotificationResponse>>(JsonOptions))!;
+        Assert.Contains(adminList.Items, n => n.Id == item.Id);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/v1/admin/notifications/{item.Id}")).StatusCode);
+    }
+
     private static async Task<AuthenticationResponse> RegisterAsync(HttpClient client)
     {
         string email = $"notify_{Guid.NewGuid():N}@example.com";

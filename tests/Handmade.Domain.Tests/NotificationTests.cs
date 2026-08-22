@@ -82,4 +82,26 @@ public sealed class NotificationTests
         Assert.Null(notification.LastError);
         Assert.False(notification.CanDeliver);
     }
+
+    [Fact]
+    public void UpdateContent_ReplacesTitleBodyAndData()
+    {
+        Notification notification = Notification.CreateForUser(UserId, "type", "title", "body", "key", "{}");
+        notification.UpdateContent("  New title  ", "  New body  ", "  {\"a\":1}  ");
+
+        Assert.Equal("New title", notification.Title);
+        Assert.Equal("New body", notification.Body);
+        Assert.Equal("{\"a\":1}", notification.DataJson);
+    }
+
+    [Fact]
+    public void MarkUnread_ClearsReadState()
+    {
+        Notification notification = Notification.CreateForUser(UserId, "type", "title", "body", "key");
+        notification.MarkRead(DateTimeOffset.UtcNow);
+        notification.MarkUnread();
+
+        Assert.False(notification.IsRead);
+        Assert.Null(notification.ReadAt);
+    }
 }
