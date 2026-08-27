@@ -69,6 +69,12 @@ Secrets belong in environment variables or a secrets manager — never in the re
 
 Fixed-window limits protect `POST /api/v1/auth/register|login|google|refresh` and public catalog GETs. Limits are configured under `RateLimiting` (env: `RateLimiting__Auth__PermitLimit`, etc.). Integration tests disable limiting via `RateLimiting:Enabled=false`.
 
+**Staging/Production** require `RateLimiting:Enabled=true` and positive `Auth`/`Catalog` permit limits and window seconds (supplied via environment configuration). Disabling rate limiting or using zero/invalid limits fails at startup.
+
+HTTP **429** means the request was throttled; the endpoint handler is not executed. Responses use the existing ProblemDetails shape (`code=rate_limited`, optional `Retry-After`).
+
+Partitioning is per client IP (`RemoteIpAddress` only). Forwarding headers such as `X-Forwarded-For` are not trusted without explicit trusted-proxy configuration.
+
 ## Observability
 
 - Development: console + debug logging

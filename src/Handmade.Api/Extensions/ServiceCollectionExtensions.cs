@@ -53,7 +53,7 @@ public static class ServiceCollectionExtensions
         services.AddHandmadeOpenApi();
         services.AddHandmadeAuthentication(configuration);
         services.AddHandmadeRealtime();
-        services.AddHandmadeRateLimiting(configuration);
+        services.AddHandmadeRateLimiting(configuration, environment);
         services.AddHandmadeObservability();
         services.AddHsts(options =>
         {

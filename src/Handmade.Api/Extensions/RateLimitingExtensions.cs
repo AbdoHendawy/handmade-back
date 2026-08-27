@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Handmade.Api.Configuration;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -11,17 +12,15 @@ public static class RateLimitingExtensions
 
     public static IServiceCollection AddHandmadeRateLimiting(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
-        bool enabled = configuration.GetValue("RateLimiting:Enabled", true);
-        RateLimitWindowOptions auth = BindWindow(configuration, "RateLimiting:Auth", permitLimit: 20, windowSeconds: 60);
-        RateLimitWindowOptions catalog = BindWindow(configuration, "RateLimiting:Catalog", permitLimit: 120, windowSeconds: 60);
+        RateLimitingOptions rateLimiting = configuration.GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>()
+            ?? new RateLimitingOptions();
+        rateLimiting.EnsureValidForDeployment(environment);
+        rateLimiting.ApplyDevelopmentDefaults(environment);
 
-        if (!enabled)
-        {
-            auth = new RateLimitWindowOptions { PermitLimit = int.MaxValue, WindowSeconds = 60 };
-            catalog = new RateLimitWindowOptions { PermitLimit = int.MaxValue, WindowSeconds = 60 };
-        }
+        bool applyLimits = rateLimiting.Enabled;
 
         services.AddRateLimiter(options =>
         {
@@ -29,51 +28,35 @@ public static class RateLimitingExtensions
             options.OnRejected = WriteRateLimitProblemAsync;
 
             options.AddPolicy(AuthPolicy, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    GetPartitionKey(httpContext),
-                    _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = auth.PermitLimit,
-                        Window = TimeSpan.FromSeconds(auth.WindowSeconds),
-                        QueueLimit = 0,
-                        AutoReplenishment = true
-                    }));
+                CreatePartition(httpContext, applyLimits, rateLimiting.Auth));
 
             options.AddPolicy(CatalogPolicy, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    GetPartitionKey(httpContext),
-                    _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = catalog.PermitLimit,
-                        Window = TimeSpan.FromSeconds(catalog.WindowSeconds),
-                        QueueLimit = 0,
-                        AutoReplenishment = true
-                    }));
+                CreatePartition(httpContext, applyLimits, rateLimiting.Catalog));
         });
 
         return services;
     }
 
-    private static RateLimitWindowOptions BindWindow(
-        IConfiguration configuration,
-        string sectionName,
-        int permitLimit,
-        int windowSeconds)
+    private static RateLimitPartition<string> CreatePartition(
+        HttpContext httpContext,
+        bool applyLimits,
+        RateLimitWindowOptions window)
     {
-        RateLimitWindowOptions options = configuration.GetSection(sectionName).Get<RateLimitWindowOptions>()
-            ?? new RateLimitWindowOptions();
-
-        if (options.PermitLimit <= 0)
+        if (!applyLimits)
         {
-            options.PermitLimit = permitLimit;
+            return RateLimitPartition.GetNoLimiter("disabled");
         }
 
-        if (options.WindowSeconds <= 0)
-        {
-            options.WindowSeconds = windowSeconds;
-        }
-
-        return options;
+        // Per-client IP only; do not trust X-Forwarded-For without explicit trusted-proxy configuration.
+        return RateLimitPartition.GetFixedWindowLimiter(
+            GetPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = window.PermitLimit,
+                Window = TimeSpan.FromSeconds(window.WindowSeconds),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
     }
 
     private static string GetPartitionKey(HttpContext httpContext)
@@ -109,12 +92,5 @@ public static class RateLimitingExtensions
 
         httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
-    }
-
-    private sealed class RateLimitWindowOptions
-    {
-        public int PermitLimit { get; set; }
-
-        public int WindowSeconds { get; set; }
     }
 }
