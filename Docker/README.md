@@ -2,7 +2,9 @@
 
 ## What runs in Docker
 
-Only **PostgreSQL** is containerized by default. Run the API with `dotnet run` on the host for a faster inner loop.
+**PostgreSQL** and **MinIO** are containerized by default. Run the API with `dotnet run` on the host for a faster inner loop.
+
+MinIO is local object storage for product images (`IFileStorage`). The API is not containerized.
 
 ## Start
 
@@ -10,6 +12,10 @@ Only **PostgreSQL** is containerized by default. Run the API with `dotnet run` o
 cp .env.example .env
 docker compose up -d
 ```
+
+- PostgreSQL: `localhost:5432`
+- MinIO API: `http://localhost:9000`
+- MinIO console: `http://localhost:9001`
 
 ## Stop
 
@@ -22,3 +28,5 @@ docker compose down
 ```bash
 docker compose down -v
 ```
+
+This also resets MinIO development data.

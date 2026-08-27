@@ -123,4 +123,4 @@ Development auto-migrates on API startup, then seeds roles idempotently.
 
 ## Intentionally out of scope
 
-Seller application **business rules** live in the Seller module. Identity only exposes role assignment. Admin user bootstrap UI, production email provider, Outbox table, Redis token blacklist remain out of scope.
+Seller application **business rules** live in the Seller module. Identity only exposes role assignment. Admin user bootstrap UI, production email provider, Outbox table, Redis token blacklist remain out of scope. The first Admin can be created at startup via `AdminSeed` configuration (email/password from config/secrets; no promote-user API).

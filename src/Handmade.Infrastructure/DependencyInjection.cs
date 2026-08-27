@@ -12,6 +12,7 @@ using Handmade.Infrastructure.Identity.Security;
 using Handmade.Infrastructure.Jobs;
 using Handmade.Infrastructure.Persistence;
 using Handmade.Infrastructure.Persistence.Interceptors;
+using Handmade.Infrastructure.Persistence.Seeding;
 using Handmade.Infrastructure.Services;
 using Handmade.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,8 @@ public static class DependencyInjection
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.SectionName));
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
+        services.Configure<AdminSeedOptions>(configuration.GetSection(AdminSeedOptions.SectionName));
+        services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
 
         ValidateJwtSettings(configuration);
 
@@ -38,7 +41,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<AuditableInterceptor>();
-        services.AddSingleton<IFileStorage, NotConfiguredFileStorage>();
+        AddFileStorage(services, configuration);
         services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IEmailSender, ConsoleEmailSender>();
@@ -76,5 +79,20 @@ public static class DependencyInjection
         {
             throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured.");
         }
+    }
+
+    private static void AddFileStorage(IServiceCollection services, IConfiguration configuration)
+    {
+        FileStorageOptions storage = configuration.GetSection(FileStorageOptions.SectionName).Get<FileStorageOptions>()
+            ?? new FileStorageOptions();
+        storage.EnsureValidWhenEnabled();
+
+        if (storage.IsMinio)
+        {
+            services.AddSingleton<IFileStorage, MinioFileStorage>();
+            return;
+        }
+
+        services.AddSingleton<IFileStorage, NotConfiguredFileStorage>();
     }
 }

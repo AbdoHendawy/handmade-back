@@ -23,6 +23,7 @@
     <PackageReference Include="Google.Apis.Auth" />
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.PostgreSql" />
+    <PackageReference Include="Minio" />
   </ItemGroup>
 
 </Project>

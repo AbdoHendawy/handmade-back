@@ -1,7 +1,10 @@
+using Handmade.Application.Catalog;
 using Handmade.Application.Catalog.DTOs;
 using Handmade.Application.Catalog.Services;
 using Handmade.Application.Common;
 using Handmade.Application.Seller;
+using Handmade.Domain.Catalog;
+using Handmade.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -103,7 +106,7 @@ public sealed class SellerProductsController : ControllerBase
         return Ok(await _products.RestoreAsync(id, cancellationToken));
     }
 
-    /// <summary>Add image metadata. Binary upload uses IFileStorage (not configured in this sprint).</summary>
+    /// <summary>Add image metadata. Binary upload uses IFileStorage via POST .../images/upload.</summary>
     [HttpPost("{id:guid}/images")]
     [ProducesResponseType(typeof(ProductImageResponse), StatusCodes.Status201Created)]
     public async Task<ActionResult<ProductImageResponse>> AddImage(
@@ -112,6 +115,35 @@ public sealed class SellerProductsController : ControllerBase
         CancellationToken cancellationToken)
     {
         ProductImageResponse created = await _products.AddImageAsync(id, request, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, created);
+    }
+
+    /// <summary>Upload a product image file. Bytes are stored via IFileStorage; PostgreSQL keeps metadata only.</summary>
+    [HttpPost("{id:guid}/images/upload")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(ProductImageFileRules.MaxRequestBytes)]
+    [ProducesResponseType(typeof(ProductImageResponse), StatusCodes.Status201Created)]
+    public async Task<ActionResult<ProductImageResponse>> UploadImage(
+        Guid id,
+        IFormFile? file,
+        [FromForm] bool isPrimary = false,
+        [FromForm] int? sortOrder = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (file is null || file.Length <= 0)
+        {
+            throw new DomainException("An image file is required.") { Code = CatalogErrorCodes.InvalidImageFile };
+        }
+
+        await using Stream stream = file.OpenReadStream();
+        ProductImageResponse created = await _products.UploadImageAsync(
+            id,
+            stream,
+            file.ContentType,
+            file.Length,
+            isPrimary,
+            sortOrder,
+            cancellationToken);
         return StatusCode(StatusCodes.Status201Created, created);
     }
 

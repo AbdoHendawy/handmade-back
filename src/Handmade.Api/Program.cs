@@ -26,6 +26,7 @@ if (app.Environment.IsDevelopment())
 }
 
 await IdentitySeed.SeedRolesAsync(app.Services);
+await IdentitySeed.SeedAdminAsync(app.Services);
 if (app.Environment.IsDevelopment())
 {
     await CatalogSeed.SeedDevelopmentCategoriesAsync(app.Services);

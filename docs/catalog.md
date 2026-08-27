@@ -38,7 +38,7 @@ Submit requires name, description (≥ 20 chars), active category, price ≥ 0, 
 
 ## Images
 
-`ProductImage` is a child of Product (`StorageKey`, `Url`, `SortOrder`, `IsPrimary`). At most one primary image (partial unique index). Binary upload uses existing `IFileStorage`; this sprint stores **metadata only** because the current provider is `NotConfiguredFileStorage`. Swap in S3/R2 later without changing the domain.
+`ProductImage` is a child of Product (`StorageKey`, `Url`, `SortOrder`, `IsPrimary`). At most one primary image (partial unique index). Binary upload is `POST /api/v1/seller/products/{id}/images/upload` (multipart file). Bytes go to `IFileStorage` (MinIO in Development). PostgreSQL stores metadata only. The existing JSON metadata endpoint remains. When `FileStorage:Provider` is unset, Infrastructure uses `NotConfiguredFileStorage`.
 
 EF does **not** own `Images` / `Variants` as Product collections. They are independent tables loaded in batch for reads. Product has no `xmin` rowversion; SellerProfile does. Child create/update therefore does not mark Product (or the related seller row) as modified.
 
@@ -60,7 +60,7 @@ Approve/reject/submit also persist in-app notifications.
 
 Public: `/api/v1/catalog/categories`, `/api/v1/catalog/products`.
 
-Seller (`SellerActive`): `/api/v1/seller/products` and nested `/images`, `/variants`, `/submit`, `/cancel-submit`, `/archive`, `/restore`.
+Seller (`SellerActive`): `/api/v1/seller/products` and nested `/images`, `/images/upload`, `/variants`, `/submit`, `/cancel-submit`, `/archive`, `/restore`.
 
 Admin: `/api/v1/admin/categories`, `/api/v1/admin/products`.
 

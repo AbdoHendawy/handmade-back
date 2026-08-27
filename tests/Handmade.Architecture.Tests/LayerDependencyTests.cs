@@ -242,6 +242,44 @@ public sealed class LayerDependencyTests
         Assert.Equal("xid", groupXmin.GetColumnType());
     }
 
+    [Fact]
+    public void Application_Should_Not_Reference_Minio()
+    {
+        TestResult result = Types.InAssembly(typeof(Handmade.Application.DependencyInjection).Assembly)
+            .ShouldNot()
+            .HaveDependencyOn("Minio")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FormatFailures(result));
+    }
+
+    [Fact]
+    public void Domain_Should_Not_Reference_Minio_Or_FileStorage()
+    {
+        TestResult minio = Types.InAssembly(typeof(Handmade.Domain.Common.Entity).Assembly)
+            .ShouldNot()
+            .HaveDependencyOn("Minio")
+            .GetResult();
+        TestResult storage = Types.InAssembly(typeof(Handmade.Domain.Common.Entity).Assembly)
+            .ShouldNot()
+            .HaveDependencyOn("Handmade.Application.Abstractions.Storage")
+            .GetResult();
+
+        Assert.True(minio.IsSuccessful, FormatFailures(minio));
+        Assert.True(storage.IsSuccessful, FormatFailures(storage));
+    }
+
+    [Fact]
+    public void Api_Should_Not_Reference_Minio()
+    {
+        TestResult result = Types.InAssembly(typeof(Handmade.Api.Controllers.CheckoutController).Assembly)
+            .ShouldNot()
+            .HaveDependencyOn("Minio")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FormatFailures(result));
+    }
+
     private static HandmadeDbContext CreateModelContext()
     {
         DbContextOptions<HandmadeDbContext> options = new DbContextOptionsBuilder<HandmadeDbContext>()

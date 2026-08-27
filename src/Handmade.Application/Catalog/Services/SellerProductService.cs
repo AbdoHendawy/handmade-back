@@ -1,8 +1,10 @@
 using FluentValidation;
 using Handmade.Application.Abstractions.Identity;
 using Handmade.Application.Abstractions.Persistence;
+using Handmade.Application.Abstractions.Storage;
 using Handmade.Application.Abstractions.Time;
 using Handmade.Application.Behaviors;
+using Handmade.Application.Catalog;
 using Handmade.Application.Catalog.DTOs;
 using Handmade.Application.Common;
 using Handmade.Application.Notifications.DTOs;
@@ -13,6 +15,7 @@ using Handmade.Domain.Identity;
 using Handmade.Domain.Notifications;
 using Handmade.Domain.Seller;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Handmade.Application.Catalog.Services;
 
@@ -45,6 +48,15 @@ public interface ISellerProductService
     Task<ProductImageResponse> AddImageAsync(
         Guid productId,
         AddProductImageRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ProductImageResponse> UploadImageAsync(
+        Guid productId,
+        Stream content,
+        string? contentType,
+        long length,
+        bool isPrimary,
+        int? sortOrder,
         CancellationToken cancellationToken = default);
 
     Task DeleteImageAsync(Guid productId, Guid imageId, CancellationToken cancellationToken = default);
@@ -90,6 +102,8 @@ public sealed class SellerProductService : ISellerProductService
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
     private readonly INotificationPublisher _notifications;
+    private readonly IFileStorage _fileStorage;
+    private readonly ILogger<SellerProductService> _logger;
     private readonly IValidator<CreateProductRequest> _createValidator;
     private readonly IValidator<UpdateProductRequest> _updateValidator;
     private readonly IValidator<AddProductImageRequest> _imageValidator;
@@ -103,6 +117,8 @@ public sealed class SellerProductService : ISellerProductService
         ICurrentUser currentUser,
         IClock clock,
         INotificationPublisher notifications,
+        IFileStorage fileStorage,
+        ILogger<SellerProductService> logger,
         IValidator<CreateProductRequest> createValidator,
         IValidator<UpdateProductRequest> updateValidator,
         IValidator<AddProductImageRequest> imageValidator,
@@ -115,6 +131,8 @@ public sealed class SellerProductService : ISellerProductService
         _currentUser = currentUser;
         _clock = clock;
         _notifications = notifications;
+        _fileStorage = fileStorage;
+        _logger = logger;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _imageValidator = imageValidator;
@@ -295,6 +313,79 @@ public sealed class SellerProductService : ISellerProductService
         _db.ProductImages.Add(created);
         await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
         return CatalogMapping.ToResponse(created);
+    }
+
+    public async Task<ProductImageResponse> UploadImageAsync(
+        Guid productId,
+        Stream content,
+        string? contentType,
+        long length,
+        bool isPrimary,
+        int? sortOrder,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        Stream payload = content;
+        if (!content.CanSeek)
+        {
+            MemoryStream copy = new();
+            await content.CopyToAsync(copy, cancellationToken);
+            copy.Position = 0;
+            payload = copy;
+            length = copy.Length;
+        }
+
+        string detectedType = ProductImageFileRules.Validate(payload, contentType, length);
+        if (sortOrder is < 1)
+        {
+            throw new DomainException("Sort order must be at least 1.") { Code = CatalogErrorCodes.InvalidSortOrder };
+        }
+
+        (Product product, _) = await LoadOwnedAsync(productId, cancellationToken, trackProduct: false);
+        product.AssertEditable();
+
+        string storageKey = ProductImageFileRules.CreateStorageKey(detectedType);
+        if (payload.CanSeek)
+        {
+            payload.Position = 0;
+        }
+
+        storageKey = await _fileStorage.UploadAsync(payload, storageKey, detectedType, cancellationToken);
+        try
+        {
+            Uri url = await _fileStorage.GetUrlAsync(storageKey, cancellationToken);
+            List<ProductImage> existing = await _db.ProductImages
+                .Where(i => i.ProductId == product.Id)
+                .ToListAsync(cancellationToken);
+            int order = sortOrder ?? (existing.Count == 0 ? 1 : existing.Max(i => i.SortOrder) + 1);
+            bool primary = isPrimary || existing.Count == 0;
+            if (primary)
+            {
+                foreach (ProductImage image in existing)
+                {
+                    image.ClearPrimary();
+                }
+            }
+
+            ProductImage created = ProductImage.Create(product.Id, storageKey, url.ToString(), order, primary);
+            _db.ProductImages.Add(created);
+            await CatalogPersistence.SaveChangesAsync(_db, cancellationToken);
+            return CatalogMapping.ToResponse(created);
+        }
+        catch
+        {
+            try
+            {
+                await _fileStorage.DeleteAsync(storageKey, cancellationToken);
+            }
+            catch (Exception cleanup)
+            {
+                _logger.LogWarning(cleanup, "Failed to delete uploaded object {StorageKey} after persistence failure", storageKey);
+            }
+
+            throw;
+        }
     }
 
     public async Task DeleteImageAsync(Guid productId, Guid imageId, CancellationToken cancellationToken = default)

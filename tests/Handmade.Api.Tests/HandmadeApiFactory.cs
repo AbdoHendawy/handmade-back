@@ -1,4 +1,5 @@
 using Handmade.Application.Abstractions.Email;
+using Handmade.Application.Abstractions.Storage;
 using Handmade.Application.Catalog.Services;
 using Handmade.Domain.Identity;
 using Handmade.Infrastructure.Persistence;
@@ -14,6 +15,9 @@ namespace Handmade.Api.Tests;
 
 public class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    public const string SeededAdminEmail = "sprint10.admin@test.local";
+    public const string SeededAdminPassword = "Test_Admin1!";
+
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .WithDatabase("handmade_test")
         .WithUsername("handmade")
@@ -45,12 +49,20 @@ public class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Jwt:RefreshTokenExpirationDays", "14");
         builder.UseSetting("GoogleAuth:ClientId", string.Empty);
         builder.UseSetting("Hangfire:Enabled", "false");
+        builder.UseSetting("AdminSeed:Enabled", "true");
+        builder.UseSetting("AdminSeed:Email", SeededAdminEmail);
+        builder.UseSetting("AdminSeed:Password", SeededAdminPassword);
+        builder.UseSetting("FileStorage:Provider", string.Empty);
 
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<RecordingEmailSender>();
             services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<RecordingEmailSender>());
+
+            services.RemoveAll<IFileStorage>();
+            services.AddSingleton<FakeFileStorage>();
+            services.AddSingleton<IFileStorage>(sp => sp.GetRequiredService<FakeFileStorage>());
 
             services.AddSingleton<CancellationXminConflictHarness>();
             services.RemoveAll<IProductInventory>();
@@ -68,6 +80,15 @@ public class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             EnsureMigrated();
             return Services.GetRequiredService<RecordingEmailSender>();
+        }
+    }
+
+    public FakeFileStorage Files
+    {
+        get
+        {
+            EnsureMigrated();
+            return Services.GetRequiredService<FakeFileStorage>();
         }
     }
 

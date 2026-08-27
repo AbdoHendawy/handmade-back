@@ -23,7 +23,7 @@ Handmade backend is a **modular monolith** using **Clean Architecture**.
                       ▲
 ┌─────────────────────┴───────────────────────┐
 │           Handmade.Infrastructure           │
-│  EF Core, PostgreSQL, file storage stubs    │
+│  EF Core, PostgreSQL, MinIO via IFileStorage │
 └─────────────────────────────────────────────┘
 ```
 

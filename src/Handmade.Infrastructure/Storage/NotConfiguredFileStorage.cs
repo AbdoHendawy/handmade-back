@@ -3,7 +3,7 @@ using Handmade.Application.Abstractions.Storage;
 namespace Handmade.Infrastructure.Storage;
 
 /// <summary>
-/// Placeholder storage provider. Replace with S3/R2/Azure/MinIO in a later sprint.
+/// Used when FileStorage:Provider is not MinIO (including API tests).
 /// </summary>
 public sealed class NotConfiguredFileStorage : IFileStorage
 {

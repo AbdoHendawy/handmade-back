@@ -42,6 +42,7 @@
 | `/api/v1/status` | Version smoke check |
 | `/hubs/notifications` | SignalR (JWT `access_token` query or Bearer) |
 | `/hangfire` | Hangfire dashboard (Development only) |
+| MinIO console | `http://localhost:9001` (local object storage) |
 
 ## User secrets (optional)
 

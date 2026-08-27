@@ -21,6 +21,9 @@ public static class CatalogErrorCodes
     public const string ImageNotFound = "product_image_not_found";
     public const string VariantNotFound = "product_variant_not_found";
     public const string InvalidStorageKey = "invalid_storage_key";
+    public const string InvalidImageFile = "invalid_image_file";
+    public const string ImageTooLarge = "image_too_large";
+    public const string ImageContentTypeNotAllowed = "image_content_type_not_allowed";
     public const string InvalidSku = "invalid_sku";
     public const string InvalidSortOrder = "invalid_sort_order";
     public const string RejectionReasonRequired = "rejection_reason_required";
