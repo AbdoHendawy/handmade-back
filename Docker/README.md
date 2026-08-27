@@ -39,7 +39,9 @@ Run with Compose profile `api` (waits for healthy Postgres + MinIO):
 docker compose --profile api up -d --build
 ```
 
-The API listens on port `8080` (`ASPNETCORE_URLS`). Probes: `/health` (liveness), `/health/ready` (Postgres).
+The Compose `api` profile defaults to `ASPNETCORE_ENVIRONMENT=Development` for **local smoke testing** only. Override to `Production` or `Staging` only when supplying full external configuration (see below).
+
+The API listens on port `8080` (`ASPNETCORE_URLS`).
 
 ### Migrations (production rule)
 
@@ -55,15 +57,73 @@ dotnet ef database update \
 
 Hangfire uses schema `hangfire`. By default `Hangfire:PrepareSchemaIfNecessary=true` so Hangfire can create its tables at first start. For hardened deploys you may set `Hangfire__PrepareSchemaIfNecessary=false` after the schema exists.
 
+## Production container
+
+The production image contains **only the published API** — no SDK, no source code, no `.env` files, and no baked-in secrets. Configuration must come from environment variables or a secrets manager at deploy time.
+
+### Runtime characteristics
+
+- **Non-root:** runs as the official ASP.NET `$APP_UID` user (unprivileged).
+- **Port:** listens on `8080` inside the container (`ASPNETCORE_URLS=http://+:8080`). Map host ports in your orchestrator as needed.
+- **Environment:** image default is `ASPNETCORE_ENVIRONMENT=Production`; override only via deploy configuration.
+- **Logging:** structured JSON to stdout/stderr (container runtime collects logs). No file logging inside the container.
+- **Do not bake secrets** into the Dockerfile, Compose files, or `appsettings.Production.json`.
+
+### Health probes
+
+Configure HTTP probes in your orchestrator (Kubernetes, ECS, Docker Compose with external tooling, etc.):
+
+| Path | Purpose |
+|------|---------|
+| `/health` | **Liveness** — no credentials required |
+| `/health/ready` | **Readiness** — includes PostgreSQL dependency |
+
+The runtime image does not include `curl` or `wget`. Use orchestrator-native HTTP probes rather than in-container shell healthchecks.
+
 ### Required Staging / Production environment
 
-See `.env.example`. When `ASPNETCORE_ENVIRONMENT` is `Staging` or `Production`, startup fails unless:
+When `ASPNETCORE_ENVIRONMENT` is `Staging` or `Production`, startup fails unless all required values are supplied externally. Phase 1 `DeploymentConfigurationGuard` enforces this at application startup.
 
-- `ConnectionStrings__Default` is set to a non-localhost host (not `localhost` / `127.0.0.1` / `::1`) and not the repository development DB password
-- `Jwt__SecretKey` (≥32 chars)
-- `AllowedHosts` is set to specific host(s) (not `*`)
-- `Cors__AllowedOrigins__N` has at least one SPA origin
-- `Email__Provider=SMTP` with valid SMTP settings
-- `FileStorage__Provider=MinIO` with endpoint/keys/bucket/public URL
+Set via environment variables (double-underscore nesting):
+
+```
+ASPNETCORE_ENVIRONMENT=Production
+
+ConnectionStrings__Default
+
+AllowedHosts
+
+Cors__AllowedOrigins__0
+Cors__AllowedOrigins__1   # additional indices as needed
+
+Email__Provider=SMTP
+Email__Host
+Email__Port
+Email__Username
+Email__Password
+Email__FromAddress
+Email__FromName
+Email__EnableSsl
+
+FileStorage__Provider=MinIO
+FileStorage__Endpoint
+FileStorage__AccessKey
+FileStorage__SecretKey
+FileStorage__Bucket
+FileStorage__UseSsl
+```
+
+Also required (see `.env.example`):
+
+- `Jwt__SecretKey` (≥32 characters)
+- `Jwt__Issuer`, `Jwt__Audience` (as configured for your deployment)
+- `FileStorage__PublicBaseUrl` (public URL for stored assets)
+
+Guard rules (not duplicated in Docker):
+
+- `ConnectionStrings__Default` must not use `localhost` / `127.0.0.1` / `::1` or the repository development password
+- `AllowedHosts` must be specific host name(s), not `*`
+- `Email__Provider` must be `SMTP` (not Console)
+- `FileStorage__Provider` must be `MinIO` (not Local)
 
 Do not commit real secrets. Use environment variables or a secrets manager.

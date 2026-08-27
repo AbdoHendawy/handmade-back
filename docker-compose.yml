@@ -53,7 +53,7 @@ services:
     ports:
       - "${API_PORT:-8080}:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       AllowedHosts: ${AllowedHosts:-localhost}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-handmade};Username=${POSTGRES_USER:-handmade};Password=${POSTGRES_PASSWORD:-handmade}
       Jwt__SecretKey: ${Jwt__SecretKey:-DEV_ONLY_COMPOSE_JWT_SECRET_KEY_32_CHARS_MIN}
