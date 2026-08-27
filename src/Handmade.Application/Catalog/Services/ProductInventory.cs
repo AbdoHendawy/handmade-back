@@ -7,9 +7,13 @@ namespace Handmade.Application.Catalog.Services;
 
 public sealed record StockDecrement(Guid ProductId, Guid? VariantId, int Quantity);
 
+public sealed record StockIncrement(Guid ProductId, Guid? VariantId, int Quantity);
+
 public interface IProductInventory
 {
     Task DecrementAsync(IReadOnlyList<StockDecrement> lines, CancellationToken cancellationToken = default);
+
+    Task IncrementAsync(IReadOnlyList<StockIncrement> lines, CancellationToken cancellationToken = default);
 }
 
 public sealed class ProductInventory : IProductInventory
@@ -80,6 +84,60 @@ public sealed class ProductInventory : IProductInventory
             }
 
             product.DecrementStock(line.Quantity);
+        }
+    }
+
+    public async Task IncrementAsync(
+        IReadOnlyList<StockIncrement> lines,
+        CancellationToken cancellationToken = default)
+    {
+        if (lines.Count == 0)
+        {
+            return;
+        }
+
+        List<Guid> productIds = lines.Select(l => l.ProductId).Distinct().ToList();
+        List<Guid> variantIds = lines
+            .Where(l => l.VariantId is Guid)
+            .Select(l => l.VariantId!.Value)
+            .Distinct()
+            .ToList();
+
+        Dictionary<Guid, Product> products = await _db.Products
+            .Where(p => productIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, cancellationToken);
+        Dictionary<Guid, ProductVariant> variants = variantIds.Count == 0
+            ? []
+            : await _db.ProductVariants
+                .Where(v => variantIds.Contains(v.Id))
+                .ToDictionaryAsync(v => v.Id, cancellationToken);
+
+        foreach (StockIncrement line in lines)
+        {
+            if (!products.TryGetValue(line.ProductId, out Product? product))
+            {
+                throw new NotFoundException("Product", line.ProductId)
+                {
+                    Code = CatalogErrorCodes.ProductNotFound
+                };
+            }
+
+            if (line.VariantId is Guid variantId)
+            {
+                if (!variants.TryGetValue(variantId, out ProductVariant? variant)
+                    || variant.ProductId != product.Id)
+                {
+                    throw new NotFoundException("ProductVariant", variantId)
+                    {
+                        Code = CatalogErrorCodes.VariantNotFound
+                    };
+                }
+
+                variant.IncrementStock(line.Quantity);
+                continue;
+            }
+
+            product.IncrementStock(line.Quantity);
         }
     }
 }

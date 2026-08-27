@@ -67,6 +67,11 @@ public sealed class ProductVariant : Entity, IAuditable
         StockQuantity = Product.ApplyDecrement(StockQuantity, quantity);
     }
 
+    public void IncrementStock(int quantity)
+    {
+        StockQuantity = Product.ApplyIncrement(StockQuantity, quantity);
+    }
+
     public static string RequireName(string name)
     {
         string trimmed = name?.Trim() ?? string.Empty;

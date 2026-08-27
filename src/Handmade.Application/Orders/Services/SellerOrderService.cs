@@ -34,17 +34,20 @@ public sealed class SellerOrderService : ISellerOrderService
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
+    private readonly IOrderCancellationService _cancellation;
     private readonly IOrderNotificationService _notifications;
 
     public SellerOrderService(
         IApplicationDbContext db,
         ICurrentUser currentUser,
         IClock clock,
+        IOrderCancellationService cancellation,
         IOrderNotificationService notifications)
     {
         _db = db;
         _currentUser = currentUser;
         _clock = clock;
+        _cancellation = cancellation;
         _notifications = notifications;
     }
 
@@ -108,9 +111,16 @@ public sealed class SellerOrderService : ISellerOrderService
         return TransitionAsync(orderId, (order, now) => order.Deliver(now), cancellationToken);
     }
 
-    public Task<OrderResponse> CancelAsync(Guid orderId, CancellationToken cancellationToken = default)
+    public async Task<OrderResponse> CancelAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        return TransitionAsync(orderId, (order, now) => order.Cancel(now), cancellationToken);
+        SellerProfile seller = await RequireActiveSellerAsync(cancellationToken);
+        Order order = await _cancellation.PersistCancelAsync(
+            orderId,
+            candidate => candidate.SellerId == seller.Id,
+            cancellationToken);
+        await _notifications.NotifyCancelledAsync(order, order.CustomerId, cancellationToken);
+        await RestoreItemsAsync([order], cancellationToken);
+        return OrderMapping.ToOrderResponse(order);
     }
 
     private async Task<OrderResponse> TransitionAsync(

@@ -248,6 +248,124 @@ public sealed class CatalogTests
     }
 
     [Fact]
+    public void Product_IncrementStock_IncreasesQuantity()
+    {
+        Product product = ReadyProduct();
+        product.SetStock(10);
+        product.IncrementStock(2);
+        Assert.Equal(12, product.StockQuantity);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Product_IncrementStock_NonPositive_Throws(int quantity)
+    {
+        Product product = ReadyProduct();
+        product.SetStock(10);
+        DomainException ex = Assert.Throws<DomainException>(() => product.IncrementStock(quantity));
+        Assert.Equal(CatalogErrorCodes.InvalidStockQuantity, ex.Code);
+        Assert.Equal(10, product.StockQuantity);
+    }
+
+    [Fact]
+    public void Product_IncrementStock_DoesNotRequireEditableStatus()
+    {
+        Product pending = ReadyProduct();
+        pending.SetStock(4);
+        pending.Submit(Now);
+        pending.IncrementStock(1);
+        Assert.Equal(5, pending.StockQuantity);
+        Assert.Equal(ProductStatus.PendingReview, pending.Status);
+
+        Product archived = ReadyProduct();
+        archived.SetStock(4);
+        archived.Submit(Now);
+        archived.Approve(Guid.CreateVersion7(), Now);
+        archived.Archive(Now);
+        archived.IncrementStock(3);
+        Assert.Equal(7, archived.StockQuantity);
+        Assert.Equal(ProductStatus.Archived, archived.Status);
+    }
+
+    [Fact]
+    public void Product_IncrementStock_DoesNotChangeUnrelatedFields()
+    {
+        Product product = ReadyProduct();
+        product.SetStock(10);
+        string name = product.Name;
+        string description = product.Description;
+        decimal price = product.Price;
+        string currency = product.Currency;
+        ProductStatus status = product.Status;
+        Guid sellerId = product.SellerId;
+        Guid categoryId = product.CategoryId;
+
+        product.IncrementStock(2);
+
+        Assert.Equal(12, product.StockQuantity);
+        Assert.Equal(name, product.Name);
+        Assert.Equal(description, product.Description);
+        Assert.Equal(price, product.Price);
+        Assert.Equal(currency, product.Currency);
+        Assert.Equal(status, product.Status);
+        Assert.Equal(sellerId, product.SellerId);
+        Assert.Equal(categoryId, product.CategoryId);
+    }
+
+    [Fact]
+    public void Variant_IncrementStock_IncreasesQuantity()
+    {
+        ProductVariant variant = ReadyProduct().AddVariant("Small", "BRC-S", 100m, "EGP");
+        variant.SetStock(3);
+        variant.IncrementStock(2);
+        Assert.Equal(5, variant.StockQuantity);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-2)]
+    public void Variant_IncrementStock_NonPositive_Throws(int quantity)
+    {
+        ProductVariant variant = ReadyProduct().AddVariant("Small", "BRC-S", 100m, "EGP");
+        variant.SetStock(3);
+        DomainException ex = Assert.Throws<DomainException>(() => variant.IncrementStock(quantity));
+        Assert.Equal(CatalogErrorCodes.InvalidStockQuantity, ex.Code);
+        Assert.Equal(3, variant.StockQuantity);
+    }
+
+    [Fact]
+    public void Variant_IncrementStock_DoesNotChangeProductStock()
+    {
+        Product product = ReadyProduct();
+        product.SetStock(10);
+        ProductVariant variant = product.AddVariant("Small", "BRC-S", 100m, "EGP");
+        variant.SetStock(3);
+
+        variant.IncrementStock(2);
+
+        Assert.Equal(5, variant.StockQuantity);
+        Assert.Equal(10, product.StockQuantity);
+    }
+
+    [Fact]
+    public void Variant_IncrementStock_DoesNotRequireProductEditableStatus()
+    {
+        Product product = ReadyProduct();
+        ProductVariant variant = product.AddVariant("Small", "BRC-S", 100m, "EGP");
+        variant.SetStock(3);
+        product.Submit(Now);
+        product.Approve(Guid.CreateVersion7(), Now);
+        product.Archive(Now);
+
+        variant.IncrementStock(4);
+
+        Assert.Equal(7, variant.StockQuantity);
+        Assert.Equal(ProductStatus.Archived, product.Status);
+        Assert.Equal(0, product.StockQuantity);
+    }
+
+    [Fact]
     public void Product_SetStock_AllowedOnDraftRejectedAndPublished()
     {
         Product draft = ReadyProduct();

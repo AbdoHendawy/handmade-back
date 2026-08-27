@@ -374,6 +374,11 @@ public sealed class Product : AggregateRoot, IAuditable
         StockQuantity = ApplyDecrement(StockQuantity, quantity);
     }
 
+    public void IncrementStock(int quantity)
+    {
+        StockQuantity = ApplyIncrement(StockQuantity, quantity);
+    }
+
     public void EnsureOwnedBy(Guid sellerId)
     {
         if (SellerId != sellerId)
@@ -414,6 +419,19 @@ public sealed class Product : AggregateRoot, IAuditable
         }
 
         return current - quantity;
+    }
+
+    internal static int ApplyIncrement(int current, int quantity)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("Quantity to increment must be greater than zero.")
+            {
+                Code = CatalogErrorCodes.InvalidStockQuantity
+            };
+        }
+
+        return current + quantity;
     }
 
     private void EnsureEditable()

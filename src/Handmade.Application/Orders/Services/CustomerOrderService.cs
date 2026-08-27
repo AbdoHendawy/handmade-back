@@ -1,6 +1,5 @@
 using Handmade.Application.Abstractions.Identity;
 using Handmade.Application.Abstractions.Persistence;
-using Handmade.Application.Abstractions.Time;
 using Handmade.Application.Common;
 using Handmade.Application.Orders.DTOs;
 using Handmade.Domain.Exceptions;
@@ -24,18 +23,18 @@ public sealed class CustomerOrderService : ICustomerOrderService
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUser _currentUser;
-    private readonly IClock _clock;
+    private readonly IOrderCancellationService _cancellation;
     private readonly IOrderNotificationService _notifications;
 
     public CustomerOrderService(
         IApplicationDbContext db,
         ICurrentUser currentUser,
-        IClock clock,
+        IOrderCancellationService cancellation,
         IOrderNotificationService notifications)
     {
         _db = db;
         _currentUser = currentUser;
-        _clock = clock;
+        _cancellation = cancellation;
         _notifications = notifications;
     }
 
@@ -91,16 +90,10 @@ public sealed class CustomerOrderService : ICustomerOrderService
     public async Task<OrderResponse> CancelAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         Guid userId = RequireUserId();
-        Order order = await _db.Orders
-                          .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
-                      ?? throw NotFoundOrder(orderId);
-        if (order.CustomerId != userId)
-        {
-            throw NotFoundOrder(orderId);
-        }
-
-        order.Cancel(_clock.UtcNow);
-        await _db.SaveChangesAsync(cancellationToken);
+        Order order = await _cancellation.PersistCancelAsync(
+            orderId,
+            candidate => candidate.CustomerId == userId,
+            cancellationToken);
         await NotifySellerCancelledAsync(order, cancellationToken);
         await RestoreItemsAsync(order, cancellationToken);
         return OrderMapping.ToOrderResponse(order);
@@ -168,10 +161,5 @@ public sealed class CustomerOrderService : ICustomerOrderService
     private static NotFoundException NotFound(Guid orderGroupId)
     {
         return new NotFoundException("OrderGroup", orderGroupId) { Code = OrderErrorCodes.OrderNotFound };
-    }
-
-    private static NotFoundException NotFoundOrder(Guid orderId)
-    {
-        return new NotFoundException("Order", orderId) { Code = OrderErrorCodes.OrderNotFound };
     }
 }
