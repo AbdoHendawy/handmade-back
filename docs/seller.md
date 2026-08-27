@@ -144,4 +144,4 @@ Future Product entities should reference `SellerProfile.Id`, not `UserId`. See [
 
 ## Intentionally out of scope
 
-Inventory, orders, payments, storefront, logo/cover upload, tax/compliance fields, Outbox, production SMTP.
+Inventory, orders, payments, storefront, logo/cover upload, tax/compliance fields, Outbox.

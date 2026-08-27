@@ -38,6 +38,9 @@
     <!-- Object storage (Infrastructure only) -->
     <PackageVersion Include="Minio" Version="6.0.5" />
 
+    <!-- Email / SMTP (Infrastructure only) -->
+    <PackageVersion Include="MailKit" Version="4.17.0" />
+
     <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />

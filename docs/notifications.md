@@ -208,4 +208,4 @@ CORS uses `Cors:AllowedOrigins` (Development default `http://localhost:4200`) wi
 
 ## Intentionally out of scope
 
-Outbox table, production Hangfire dashboard auth, push providers, notification templates localization.
+Outbox table, production Hangfire dashboard auth (dashboard remains Development-only), push providers, notification templates localization.

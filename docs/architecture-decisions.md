@@ -148,9 +148,9 @@ Bearer JWT is a global security scheme so authenticated endpoints can be called 
 
 ---
 
-## ADR-016: Welcome email — console + flag idempotency
+## ADR-016: Welcome email — provider + flag idempotency
 
-**Decision:** `IEmailSender` with Development `ConsoleEmailSender`; Identity welcome-mail idempotency via `User.WelcomeEmailSent`. Seller (and future modules) persist an in-app `Notification` then send email from the Hangfire delivery job. No Outbox table yet.
+**Decision:** `IEmailSender` with `Email:Provider` selecting Development `ConsoleEmailSender` or production `SmtpEmailSender` (MailKit). Identity welcome-mail idempotency via `User.WelcomeEmailSent`. Seller (and future modules) persist an in-app `Notification` then send email from the Hangfire delivery job. No Outbox table yet. SMTP misconfiguration fails at startup; Production never silently falls back to console.
 
 **Reason:** Avoid broker complexity; Outbox can be added later without redesigning Identity or Notification ports.
 

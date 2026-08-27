@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
         services.Configure<AdminSeedOptions>(configuration.GetSection(AdminSeedOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
 
         ValidateJwtSettings(configuration);
 
@@ -42,9 +43,9 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<AuditableInterceptor>();
         AddFileStorage(services, configuration);
+        AddEmailSender(services, configuration);
         services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
-        services.AddSingleton<IEmailSender, ConsoleEmailSender>();
         services.AddSingleton<IExternalAuthProvider, GoogleIdTokenValidator>();
 
         services.AddDbContext<HandmadeDbContext>((serviceProvider, options) =>
@@ -94,5 +95,20 @@ public static class DependencyInjection
         }
 
         services.AddSingleton<IFileStorage, NotConfiguredFileStorage>();
+    }
+
+    private static void AddEmailSender(IServiceCollection services, IConfiguration configuration)
+    {
+        EmailOptions email = configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>()
+            ?? new EmailOptions();
+        email.EnsureValidWhenSmtp();
+
+        if (email.IsSmtp)
+        {
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+            return;
+        }
+
+        services.AddSingleton<IEmailSender, ConsoleEmailSender>();
     }
 }

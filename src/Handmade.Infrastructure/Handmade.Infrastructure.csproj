@@ -24,6 +24,12 @@
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.PostgreSql" />
     <PackageReference Include="Minio" />
+    <PackageReference Include="MailKit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Handmade.Application.Tests" />
+    <InternalsVisibleTo Include="Handmade.Api.Tests" />
   </ItemGroup>
 
 </Project>

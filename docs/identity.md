@@ -63,7 +63,10 @@ Configure `Jwt` section (secret min 32 chars). Startup fails if missing.
 
 ## Welcome email
 
-`IEmailSender` + `WelcomeEmailTemplate`. Development uses `ConsoleEmailSender` (logs only).
+`IEmailSender` + `WelcomeEmailTemplate`. Provider is selected by `Email:Provider`:
+
+- `Console` (Development default) → `ConsoleEmailSender` (logs only)
+- `SMTP` → `SmtpEmailSender` (MailKit); invalid SMTP settings fail at startup with no console fallback
 
 Sent once on first registration (email or Google). Idempotent via `User.WelcomeEmailSent`. Failure does not roll back user creation. No Outbox broker yet (design is Outbox-compatible).
 

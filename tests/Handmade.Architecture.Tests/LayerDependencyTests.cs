@@ -254,6 +254,17 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
+    public void Application_Should_Not_Reference_MailKit_Or_MimeKit()
+    {
+        TestResult result = Types.InAssembly(typeof(Handmade.Application.DependencyInjection).Assembly)
+            .ShouldNot()
+            .HaveDependencyOnAny("MailKit", "MimeKit")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FormatFailures(result));
+    }
+
+    [Fact]
     public void Domain_Should_Not_Reference_Minio_Or_FileStorage()
     {
         TestResult minio = Types.InAssembly(typeof(Handmade.Domain.Common.Entity).Assembly)
@@ -270,11 +281,33 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
+    public void Domain_Should_Not_Reference_MailKit_Or_MimeKit()
+    {
+        TestResult result = Types.InAssembly(typeof(Handmade.Domain.Common.Entity).Assembly)
+            .ShouldNot()
+            .HaveDependencyOnAny("MailKit", "MimeKit")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FormatFailures(result));
+    }
+
+    [Fact]
     public void Api_Should_Not_Reference_Minio()
     {
         TestResult result = Types.InAssembly(typeof(Handmade.Api.Controllers.CheckoutController).Assembly)
             .ShouldNot()
             .HaveDependencyOn("Minio")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FormatFailures(result));
+    }
+
+    [Fact]
+    public void Api_Should_Not_Reference_MailKit_Or_MimeKit()
+    {
+        TestResult result = Types.InAssembly(typeof(Handmade.Api.Controllers.CheckoutController).Assembly)
+            .ShouldNot()
+            .HaveDependencyOnAny("MailKit", "MimeKit")
             .GetResult();
 
         Assert.True(result.IsSuccessful, FormatFailures(result));

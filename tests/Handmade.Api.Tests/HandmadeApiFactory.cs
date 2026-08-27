@@ -26,6 +26,8 @@ public class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     private bool _migrated;
 
+    public string PostgresConnectionString => _postgres.GetConnectionString();
+
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();

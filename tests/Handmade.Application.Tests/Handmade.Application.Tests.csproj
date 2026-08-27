@@ -15,6 +15,7 @@
     <PackageReference Include="Testcontainers.Minio" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="MailKit" />
   </ItemGroup>
 
   <ItemGroup>

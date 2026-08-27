@@ -41,8 +41,12 @@
 | `/health/ready` | PostgreSQL readiness |
 | `/api/v1/status` | Version smoke check |
 | `/hubs/notifications` | SignalR (JWT `access_token` query or Bearer) |
-| `/hangfire` | Hangfire dashboard (Development only) |
+| `/hangfire` | Hangfire dashboard (Development only; not mapped outside Development) |
 | MinIO console | `http://localhost:9001` (local object storage) |
+
+## Email (outbound)
+
+Development uses `Email:Provider=Console` (no SMTP account required). Production/staging should set `Email:Provider=SMTP` plus host/port/from (and username/password when auth is required) via environment variables or user secrets — see `.env.example`. Invalid SMTP config fails at startup.
 
 ## User secrets (optional)
 
