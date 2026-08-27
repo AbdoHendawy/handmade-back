@@ -49,8 +49,8 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<AuditableInterceptor>();
-        AddFileStorage(services, configuration, environment);
-        AddEmailSender(services, configuration, environment);
+        AddFileStorage(services, configuration);
+        AddEmailSender(services, configuration);
         services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IExternalAuthProvider, GoogleIdTokenValidator>();
@@ -89,14 +89,10 @@ public static class DependencyInjection
         }
     }
 
-    private static void AddFileStorage(
-        IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
+    private static void AddFileStorage(IServiceCollection services, IConfiguration configuration)
     {
         FileStorageOptions storage = configuration.GetSection(FileStorageOptions.SectionName).Get<FileStorageOptions>()
             ?? new FileStorageOptions();
-        storage.EnsureAllowedForEnvironment(environment.IsDevelopment());
         storage.EnsureValidWhenEnabled();
 
         if (storage.IsMinio)
@@ -108,14 +104,10 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorage, NotConfiguredFileStorage>();
     }
 
-    private static void AddEmailSender(
-        IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
+    private static void AddEmailSender(IServiceCollection services, IConfiguration configuration)
     {
         EmailOptions email = configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>()
             ?? new EmailOptions();
-        email.EnsureAllowedForEnvironment(environment.IsDevelopment());
         email.EnsureValidWhenSmtp();
 
         if (email.IsSmtp)

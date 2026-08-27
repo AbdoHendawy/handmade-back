@@ -23,7 +23,7 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        ValidateAllowedHosts(configuration, environment);
+        DeploymentConfigurationGuard.Validate(configuration, environment);
 
         services.AddApplication();
         services.AddInfrastructure(configuration, environment);
@@ -63,21 +63,6 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
-    }
-
-    private static void ValidateAllowedHosts(IConfiguration configuration, IHostEnvironment environment)
-    {
-        if (environment.IsDevelopment())
-        {
-            return;
-        }
-
-        string? allowedHosts = configuration["AllowedHosts"];
-        if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts.Trim() == "*")
-        {
-            throw new InvalidOperationException(
-                "AllowedHosts must be configured to specific host name(s) outside Development. Set AllowedHosts via environment variables (e.g. api.example.com).");
-        }
     }
 
     private static IServiceCollection AddHandmadeRealtime(this IServiceCollection services)

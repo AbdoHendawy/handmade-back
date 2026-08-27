@@ -6,6 +6,10 @@ using Microsoft.Extensions.Hosting;
 
 namespace Handmade.Api.Tests;
 
+/// <summary>
+/// Smoke boots that Staging/Production fail closed at host construction.
+/// Detailed cases live in <see cref="DeploymentConfigurationGuardTests"/>.
+/// </summary>
 [Collection(nameof(ApiCollection))]
 public sealed class ProductionConfigFailFastTests
 {
@@ -19,11 +23,16 @@ public sealed class ProductionConfigFailFastTests
     [Fact]
     public void Production_RejectsConsoleEmail()
     {
-        using ProductionConfigFactory host = new(_factory, configure: builder =>
+        using ProductionConfigFactory host = new(_factory, builder =>
         {
             builder.UseSetting("Email:Provider", "Console");
             ApplyValidMinio(builder);
-            builder.UseSetting("AllowedHosts", "localhost");
+            builder.UseSetting("AllowedHosts", "api.example.com");
+            builder.UseSetting("Cors:AllowedOrigins:0", "https://app.example.com");
+            // Guard rejects localhost Testcontainers strings — use a non-local placeholder.
+            builder.UseSetting(
+                "ConnectionStrings:Default",
+                "Host=db.example.com;Port=5432;Database=handmade;Username=app;Password=prod-secret");
         });
 
         InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => host.CreateClient());
@@ -31,27 +40,17 @@ public sealed class ProductionConfigFailFastTests
     }
 
     [Fact]
-    public void Production_RejectsMissingFileStorage()
-    {
-        using ProductionConfigFactory host = new(_factory, configure: builder =>
-        {
-            ApplyValidSmtp(builder);
-            builder.UseSetting("FileStorage:Provider", string.Empty);
-            builder.UseSetting("AllowedHosts", "localhost");
-        });
-
-        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => host.CreateClient());
-        Assert.Contains("MinIO", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void Production_RejectsWildcardAllowedHosts()
     {
-        using ProductionConfigFactory host = new(_factory, configure: builder =>
+        using ProductionConfigFactory host = new(_factory, builder =>
         {
             ApplyValidSmtp(builder);
             ApplyValidMinio(builder);
             builder.UseSetting("AllowedHosts", "*");
+            builder.UseSetting("Cors:AllowedOrigins:0", "https://app.example.com");
+            builder.UseSetting(
+                "ConnectionStrings:Default",
+                "Host=db.example.com;Port=5432;Database=handmade;Username=app;Password=prod-secret");
         });
 
         InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => host.CreateClient());
@@ -69,11 +68,11 @@ public sealed class ProductionConfigFailFastTests
     private static void ApplyValidMinio(IWebHostBuilder builder)
     {
         builder.UseSetting("FileStorage:Provider", FileStorageOptions.MinioProvider);
-        builder.UseSetting("FileStorage:Endpoint", "localhost:9000");
+        builder.UseSetting("FileStorage:Endpoint", "minio.example.com:9000");
         builder.UseSetting("FileStorage:AccessKey", "test");
         builder.UseSetting("FileStorage:SecretKey", "testtest");
         builder.UseSetting("FileStorage:Bucket", "handmade");
-        builder.UseSetting("FileStorage:PublicBaseUrl", "http://localhost:9000/handmade");
+        builder.UseSetting("FileStorage:PublicBaseUrl", "https://cdn.example.com/handmade");
     }
 
     private sealed class ProductionConfigFactory : WebApplicationFactory<Program>
@@ -91,8 +90,6 @@ public sealed class ProductionConfigFailFastTests
         {
             _inner.EnsureMigrated();
             builder.UseEnvironment(Environments.Production);
-            builder.UseSetting("ConnectionStrings:Default", _inner.PostgresConnectionString);
-            builder.UseSetting("Cors:AllowedOrigins:0", "http://localhost:4200");
             builder.UseSetting("Jwt:SecretKey", "TEST_SECRET_KEY_AT_LEAST_32_CHARS_LONG!!");
             builder.UseSetting("Jwt:Issuer", "Handmade");
             builder.UseSetting("Jwt:Audience", "Handmade");

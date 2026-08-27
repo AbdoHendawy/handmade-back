@@ -55,13 +55,15 @@ dotnet ef database update \
 
 Hangfire uses schema `hangfire`. By default `Hangfire:PrepareSchemaIfNecessary=true` so Hangfire can create its tables at first start. For hardened deploys you may set `Hangfire__PrepareSchemaIfNecessary=false` after the schema exists.
 
-### Required production environment
+### Required Staging / Production environment
 
-See `.env.example`. Outside Development the API fails fast unless:
+See `.env.example`. When `ASPNETCORE_ENVIRONMENT` is `Staging` or `Production`, startup fails unless:
 
-- `ConnectionStrings__Default` is set
+- `ConnectionStrings__Default` is set to a non-localhost host (not `localhost` / `127.0.0.1` / `::1`) and not the repository development DB password
 - `Jwt__SecretKey` (≥32 chars)
 - `AllowedHosts` is set to specific host(s) (not `*`)
+- `Cors__AllowedOrigins__N` has at least one SPA origin
 - `Email__Provider=SMTP` with valid SMTP settings
 - `FileStorage__Provider=MinIO` with endpoint/keys/bucket/public URL
-- `Cors__AllowedOrigins__N` for browser SPA origins
+
+Do not commit real secrets. Use environment variables or a secrets manager.

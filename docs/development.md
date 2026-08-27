@@ -46,11 +46,24 @@
 
 ## Email (outbound)
 
-Development uses `Email:Provider=Console` (no SMTP account required). Outside Development, Console is rejected at startup — set `Email:Provider=SMTP` plus host/port/from (and username/password when auth is required) via environment variables or user secrets — see `.env.example`. Invalid SMTP config fails at startup.
+Development uses `Email:Provider=Console` (no SMTP account required). **Staging/Production** require `Email:Provider=SMTP` plus host/port/from (and username/password when auth is required) via environment variables or secrets — see `.env.example`. Invalid SMTP config fails at startup. Console/empty provider is rejected in Staging/Production only (Development and local test hosts are unchanged).
 
 ## File storage
 
-Development defaults to local MinIO via `appsettings.Development.json`. Outside Development, `FileStorage:Provider=MinIO` (with endpoint/keys/bucket/public URL) is required at startup.
+Development defaults to local MinIO via `appsettings.Development.json`. **Staging/Production** require `FileStorage:Provider=MinIO` (endpoint/keys/bucket/public URL) at startup.
+
+## Production / Staging configuration fail-safes
+
+`DeploymentConfigurationGuard` runs at API startup when `ASPNETCORE_ENVIRONMENT` is `Staging` or `Production`:
+
+- `ConnectionStrings__Default` required; must not use `localhost` / `127.0.0.1` / `::1`; must not use the repository development DB password
+- `AllowedHosts` required and must not be `*`
+- `Cors__AllowedOrigins__N` required (at least one origin)
+- `Email__Provider=SMTP` with valid SMTP settings
+- `FileStorage__Provider=MinIO` with valid MinIO settings
+- JWT remains validated as before (`Jwt__SecretKey` ≥ 32 chars)
+
+Secrets belong in environment variables or a secrets manager — never in the repository.
 
 ## Rate limiting
 
@@ -73,7 +86,7 @@ Fixed-window limits protect `POST /api/v1/auth/register|login|google|refresh` an
 1. Set `ASPNETCORE_ENVIRONMENT=Production` (or Staging).
 2. Supply secrets via environment / secret store (never commit them).
 3. Apply EF migrations out-of-band (`dotnet ef database update`) — API does **not** auto-migrate outside Development.
-4. Configure JWT, connection string, CORS, SMTP, MinIO, AllowedHosts.
+4. Configure JWT, non-local connection string, CORS origins, SMTP, MinIO, AllowedHosts (see fail-safes above).
 5. Hangfire dashboard and Swagger/Scalar are Development-only.
 6. HSTS is enabled outside Development.
 
