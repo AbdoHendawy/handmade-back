@@ -127,13 +127,22 @@ Checkout body is delivery only. Identity comes from `ICurrentUser`. Delivery fie
 
 `orders` and `order_groups` have PostgreSQL `xmin` as an EF rowversion.
 
-Seller and customer status writes load a tracked `Order`, call the domain method, and `SaveChangesAsync` once. They do **not** use checkout inventory retry and do **not** catch `DbUpdateConcurrencyException`. A stale `xmin` becomes `DbUpdateConcurrencyException`; `GlobalExceptionHandler` maps it to **409** `concurrency_conflict`.
+Confirm, Prepare, Ship, and Deliver load a tracked `Order`, call the domain method, and `SaveChangesAsync` once. They do **not** use inventory retry and do **not** catch `DbUpdateConcurrencyException`. A stale `xmin` becomes `DbUpdateConcurrencyException`; `GlobalExceptionHandler` maps it to **409** `concurrency_conflict`.
 
-This is separate from checkout inventory xmin retry.
+Cancel is different: it mutates Catalog stock in the same `SaveChangesAsync` as the status change, so it reuses checkout's inventory xmin classification (`CheckoutConcurrency.Decide`, maximum two attempts). Inventory-only `Product` / `ProductVariant` conflicts retry once. `Order` / `OrderGroup` / `OrderItem` / unrelated conflicts are not hidden. A concurrent cancel that already committed surfaces as existing `invalid_status_transition` on reload, or as `concurrency_conflict` when `orders.xmin` loses.
 
 ## Inventory
 
-Stock is Catalog-owned (`IProductInventory.DecrementAsync`, no SaveChanges). Default stock is 0. Orders do not implement stock rules and do not own `insufficient_stock`.
+Stock is Catalog-owned. Orders do not implement stock rules and do not own `insufficient_stock`. Default stock is 0.
+
+Checkout decrements via `IProductInventory.DecrementAsync` (no SaveChanges). Cancelling a **Placed** Order restores the quantities that checkout took from that Order's `OrderItem` rows via `IProductInventory.IncrementAsync` (no SaveChanges). Restore identity is `OrderItem.ProductId` + `OrderItem.VariantId` + `OrderItem.Quantity`. Current product variant count is **not** used:
+
+- `VariantId == null` → restore `Product.StockQuantity`
+- `VariantId != null` → restore that `ProductVariant.StockQuantity`
+
+`Order.Cancel()` remains status-only. Application cancellation orchestrates cancel then increment, then **one** `SaveChangesAsync` persists Order + stock. There is no explicit transaction, `IUnitOfWork`, stock ledger, reservation table, or `StockRestored` flag.
+
+Confirmed, Preparing, Shipped, and Delivered cannot be cancelled, so they do not restock. Multi-seller: only the cancelled Order's items are restored; sibling seller Orders and `OrderGroup` are unchanged. Notifications run after successful persistence.
 
 A published product that has been ordered **cannot be hard-deleted** while `order_items` rows exist (`Restrict`). Archive remains the public-catalog removal path. Restore/archive/delete lifecycle is unchanged.
 

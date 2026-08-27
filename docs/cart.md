@@ -41,7 +41,7 @@ Multi-seller carts are allowed. Checkout splits them into one Order per seller.
 |---|---|
 | Add / update | Current product or variant price, stored as `priceSnapshot` |
 | `GET /cart` | Live Catalog price; `priceChanged` when live ≠ snapshot |
-| Checkout (future) | Always re-read Catalog |
+| Checkout | Always re-read Catalog; cart `priceSnapshot` is never the order price |
 
 Money follows ADR-018: `decimal(18,2)` + ISO 4217 currency (default EGP). Mixed currencies in one cart are rejected. No tax, shipping, coupons, or promotions.
 
@@ -55,7 +55,9 @@ Money follows ADR-018: `decimal(18,2)` + ISO 4217 currency (default EGP). Mixed 
 
 ## Inventory
 
-There is **no stock** on Product/Variant yet. Cart does not reserve or decrement inventory. Quantity is only an intention. Checkout/Order must add inventory validation and concurrency.
+Catalog owns stock on `Product` / `ProductVariant`. Cart does not reserve, decrement, or restore inventory. Quantity is only an intention.
+
+Checkout decrements Catalog stock when it places an order. If that Order is later cancelled while **Placed**, Application cancellation restores the stock that Order took. Restoration is not a Cart responsibility. See [orders.md](orders.md).
 
 ## Purchasability
 
@@ -80,7 +82,7 @@ Public catalog listing is unchanged (Published only; it still does not hide susp
 - PostgreSQL `xmin` rowversion on `cart_items`
 - Unique/xmin conflicts retry **once** so concurrent adds become quantity 2, not 409
 
-Product rows have no `xmin`; price/status races are resolved at checkout.
+Product and variant inventory rows use PostgreSQL `xmin`; checkout (and Placed cancellation restore) classify those conflicts. Cart itself only retries `cart_items` unique/xmin races.
 
 ## Endpoints
 
@@ -96,13 +98,6 @@ All require `[Authorize]`. User id is never accepted from the client.
 
 ## Out of scope
 
-Notifications, Hangfire, domain-event dispatch, Order, Payment, Shipping, coupons, tax, inventory reservation.
+Notifications, Hangfire, domain-event dispatch, Payment, Shipping, coupons, tax, inventory reservation.
 
-## Future Order integration
-
-```
-GET Cart → Checkout revalidate (product, seller, price, stock)
-        → Create Order snapshot
-        → Reserve/decrement inventory
-        → Payment
-```
+Checkout and Placed-order cancellation live in Orders, not Cart. See [orders.md](orders.md).

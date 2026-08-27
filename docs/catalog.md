@@ -75,8 +75,23 @@ Admin: `/api/v1/admin/categories`, `/api/v1/admin/products`.
 
 Cross-seller access returns **404**. Admin is not a seller.
 
+## Inventory
+
+Catalog owns sellable stock. `Product.StockQuantity` is used when the product has no variants. `ProductVariant.StockQuantity` is used for a variant line. Default stock is 0.
+
+`DecrementStock` (checkout) and `SetStock` (seller) keep their existing rules. `IncrementStock` is the restore path:
+
+- Quantity must be greater than zero; `<= 0` uses existing `invalid_stock_quantity`
+- Does not call `EnsureEditable`; it may run on PendingReview or Archived rows
+- Does not persist by itself
+- A variant increment changes only that variant's stock, not the parent Product stock
+
+Application checkout calls `IProductInventory.DecrementAsync`. Application cancellation of a **Placed** Order calls `IProductInventory.IncrementAsync`. Restore identity comes from `OrderItem.VariantId`, not from the product's current variant count. Catalog owns the mutation; Orders Application orchestrates it. See [orders.md](orders.md).
+
+Product and ProductVariant rows use PostgreSQL `xmin`. Cancellation may retry when the conflict is classified as inventory-only. Catalog does not handle Order / OrderGroup / OrderItem concurrency.
+
 ## Future
 
-Inventory hangs off `ProductVariant`. Cart/orders reference Product/Variant **IDs**, not slugs. Cart add/update goes through `IProductPurchaseQuery` (Published + active seller + variant rules) and does **not** reserve stock. Reviews reference Product. Search/cache can subscribe to `ProductApproved` later. Do not add Redis/OpenSearch in this module.
+Cart/orders reference Product/Variant **IDs**, not slugs. Cart add/update goes through `IProductPurchaseQuery` (Published + active seller + variant rules) and does **not** reserve stock. Reviews reference Product. Search/cache can subscribe to `ProductApproved` later. Do not add Redis/OpenSearch in this module.
 
 Rejection currently stores the latest reason on Product (`RejectionReason`, `ReviewedBy`, `ReviewedAt`). A `ProductModerationEvent` table can be added later if resubmit history must be fully auditable.

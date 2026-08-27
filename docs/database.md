@@ -80,11 +80,11 @@ Hangfire tables live in schema `hangfire` (created by Hangfire.PostgreSql, not E
 Catalog tables from Sprint 4:
 
 - `categories` — unique `slug`; self-FK `parent_category_id` Restrict; index on parent and `is_active`
-- `products` — unique `slug`; FK `seller_id` → `seller_profiles` Restrict; FK `category_id` → `categories` Restrict; indexes on seller, category, status, created_at, `(status, published_at)` for public lists
+- `products` — unique `slug`; FK `seller_id` → `seller_profiles` Restrict; FK `category_id` → `categories` Restrict; indexes on seller, category, status, created_at, `(status, published_at)` for public lists; `stock_quantity`
 - `product_images` — FK cascade from product; partial unique one primary image per product
-- `product_variants` — unique `sku`; FK cascade from product
+- `product_variants` — unique `sku`; FK cascade from product; `stock_quantity`
 
-Optimistic concurrency uses PostgreSQL `xmin` (EF rowversion) on categories. Product lifecycle races (double approve) fail via invalid state transitions; child collections (images/variants) do not use `xmin` because it conflicts with aggregate updates.
+Optimistic concurrency uses PostgreSQL `xmin` (EF rowversion) on categories. Product lifecycle races (double approve) fail via invalid state transitions. Product and product_variant inventory rows also use `xmin` (see order inventory retry below).
 
 Cart tables from Sprint 6:
 
@@ -95,8 +95,10 @@ Order tables from Sprint 7 (`AddOrderModule`), plus `order_groups.payment_method
 
 - `order_groups` — identity `number`; `status` (`Placed` only); `payment_method` (CashOnDelivery snapshot); customer/delivery snapshot fields; FK `customer_id` → `users` Restrict; `xmin`
 - `orders` — identity `number`; `status` (Placed / Confirmed / Preparing / Shipped / Delivered / Cancelled); seller/customer/delivery snapshot fields; FK `order_group_id` Cascade; FKs customer/seller Restrict; `xmin`
-- `order_items` — product/variant/seller snapshot fields; FK `order_id` Cascade; FKs product/variant/seller Restrict; `xmin`
+- `order_items` — product/variant/seller snapshot fields (`product_id`, `variant_id`, `quantity`); FK `order_id` Cascade; FKs product/variant/seller Restrict; `xmin`
 
-Optimistic concurrency uses PostgreSQL `xmin` on products and product_variants for **checkout inventory retry**. Status writes on `orders` also use `xmin`; stale seller/customer updates rethrow `DbUpdateConcurrencyException` (GlobalExceptionHandler 409 `concurrency_conflict`). That path is not the checkout inventory retry.
+Sprint 9 cancellation restoration added **no** migration, tables, columns, or indexes. Existing `products.stock_quantity`, `product_variants.stock_quantity`, and `order_items` identity (`product_id`, `variant_id`, `quantity`) are sufficient. Restrict FKs remain the integrity mechanism that prevents hard-deleting referenced Catalog rows.
+
+Optimistic concurrency uses PostgreSQL `xmin` on products and product_variants for checkout inventory retry **and** Placed-cancel inventory restore (inventory-only conflicts retry once). Status writes on `orders` also use `xmin`. Confirm/Prepare/Ship/Deliver rethrow `DbUpdateConcurrencyException` (GlobalExceptionHandler 409 `concurrency_conflict`). Cancel classifies inventory xmin with the same helper as checkout.
 
 See [seller.md](seller.md), [notifications.md](notifications.md), [catalog.md](catalog.md), [cart.md](cart.md), and [orders.md](orders.md).

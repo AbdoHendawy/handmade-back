@@ -227,12 +227,44 @@ Valid `Order` flow: `Placed → Confirmed → Preparing → Shipped → Delivere
 - Sibling Orders in one OrderGroup progress independently.
 - Cash on Delivery remains the only `PaymentMethod`. No Payment module, `PaymentStatus`, `PaymentTransaction`, refund, or online gateway.
 - Lifecycle notifications (`order.confirmed`, `order.preparing`, `order.shipped`, `order.delivered`, `order.cancelled`) publish through `IOrderNotificationService` after successful `SaveChangesAsync`. Publisher failure is logged and does not roll back the status change.
-- Status writes rely on `orders.xmin`. They do not use checkout inventory retry. Uncaught `DbUpdateConcurrencyException` maps to 409 `concurrency_conflict`.
+- Confirm, Prepare, Ship, and Deliver rely on `orders.xmin` and do not use inventory retry. Uncaught `DbUpdateConcurrencyException` maps to 409 `concurrency_conflict`. Cancel of a Placed Order restores Catalog stock in the same `SaveChangesAsync` and classifies inventory xmin with `CheckoutConcurrency.Decide` (retry once). `Order.Cancel()` remains status-only; Catalog owns the stock mutation via `IProductInventory.IncrementAsync`.
 - Domain events remain Raise-only. No MediatR, event bus, generic repository, `IUnitOfWork`, or `BeginTransaction`.
 
 **Reason:** Multi-seller checkout already splits one OrderGroup into one Order per seller. Letting a seller mutate OrderGroup status would couple independent shops. Payment state is not OrderStatus.
 
 **Alternatives rejected:** synchronizing OrderGroup from child Orders; allowing cancel after confirmation; a Payment module in this sprint.
+
+---
+
+## ADR-022: Cancelled Placed Orders restore inventory
+
+**Status:** Accepted
+
+**Context:** Checkout decrements Catalog stock through `IProductInventory.DecrementAsync`. Customer and seller cancel APIs already exist and remain `Placed → Cancelled` only. Without restoration, a cancelled Order would permanently consume that stock. A Product can gain or lose variants after checkout, so restoration must not infer Product vs Variant from the live variant count. The restore target is the identity already persisted on `OrderItem`.
+
+**Decision:** On successful `Placed → Cancelled`, restore stock for every `OrderItem` on that Order:
+
+- `VariantId == null` → `Product.IncrementStock(quantity)`
+- `VariantId != null` → that `ProductVariant.IncrementStock(quantity)`
+
+Application cancellation calls `IProductInventory.IncrementAsync` after `Order.Cancel()`. `Order.Cancel()` remains status-only. Domain Orders do not own inventory. Catalog owns the mutation. One `SaveChangesAsync` persists Order + stock. Notifications run after a successful save; publisher failure is still swallowed. Inventory-only Product/ProductVariant `xmin` conflicts retry once (`CheckoutConcurrency.Decide`, MaxAttempts = 2). There is no explicit transaction, `IUnitOfWork`, stock ledger, reservation table, or `StockRestored` flag. No database migration.
+
+**Consequences:**
+
+- Cancelled stock becomes available again.
+- Order status and inventory persist atomically under existing EF/Npgsql `xmin`.
+- Duplicate concurrent cancel cannot restore twice (`orders.xmin` / `invalid_status_transition` on reload).
+- Checkout architecture and cancel routes stay unchanged; `OrderResponse` exposes no stock fields.
+- Cancellation now participates in inventory concurrency.
+- Notification-after-commit keeps the existing crash window.
+- There is no historical stock-movement ledger.
+
+**Alternatives rejected:**
+
+1. Save status, then restore stock — split-brain if the second write fails.
+2. Reservation model — would change checkout and add a new inventory model.
+3. `StockMovement` / ledger — out of Sprint 9 scope; may be considered later.
+4. Do not restock on cancellation — leaves cancelled stock consumed.
 
 ---
 

@@ -1,4 +1,5 @@
 using Handmade.Application.Abstractions.Email;
+using Handmade.Application.Catalog.Services;
 using Handmade.Domain.Identity;
 using Handmade.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -50,6 +51,14 @@ public class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<RecordingEmailSender>();
             services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<RecordingEmailSender>());
+
+            services.AddSingleton<CancellationXminConflictHarness>();
+            services.RemoveAll<IProductInventory>();
+            services.AddScoped<ProductInventory>();
+            services.AddScoped<IProductInventory>(sp => new CancellationXminConflictInventory(
+                sp.GetRequiredService<ProductInventory>(),
+                sp.GetRequiredService<CancellationXminConflictHarness>(),
+                sp.GetRequiredService<IServiceScopeFactory>()));
         });
     }
 
@@ -59,6 +68,15 @@ public class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             EnsureMigrated();
             return Services.GetRequiredService<RecordingEmailSender>();
+        }
+    }
+
+    public CancellationXminConflictHarness CancellationXminConflicts
+    {
+        get
+        {
+            EnsureMigrated();
+            return Services.GetRequiredService<CancellationXminConflictHarness>();
         }
     }
 
