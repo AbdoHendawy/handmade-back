@@ -46,7 +46,36 @@
 
 ## Email (outbound)
 
-Development uses `Email:Provider=Console` (no SMTP account required). Production/staging should set `Email:Provider=SMTP` plus host/port/from (and username/password when auth is required) via environment variables or user secrets — see `.env.example`. Invalid SMTP config fails at startup.
+Development uses `Email:Provider=Console` (no SMTP account required). Outside Development, Console is rejected at startup — set `Email:Provider=SMTP` plus host/port/from (and username/password when auth is required) via environment variables or user secrets — see `.env.example`. Invalid SMTP config fails at startup.
+
+## File storage
+
+Development defaults to local MinIO via `appsettings.Development.json`. Outside Development, `FileStorage:Provider=MinIO` (with endpoint/keys/bucket/public URL) is required at startup.
+
+## Rate limiting
+
+Fixed-window limits protect `POST /api/v1/auth/register|login|google|refresh` and public catalog GETs. Limits are configured under `RateLimiting` (env: `RateLimiting__Auth__PermitLimit`, etc.). Integration tests disable limiting via `RateLimiting:Enabled=false`.
+
+## Observability
+
+- Development: console + debug logging
+- Non-Development: JSON console logs with scopes
+- HTTP request logging (method/path/status/duration; bodies and auth headers not logged)
+- ProblemDetails `traceId` matches log scope `traceId`
+
+## Health endpoints
+
+- `/health` — process liveness (public; safe for load balancers)
+- `/health/ready` — PostgreSQL readiness (public; reveals DB availability only)
+
+## Production / Staging checklist
+
+1. Set `ASPNETCORE_ENVIRONMENT=Production` (or Staging).
+2. Supply secrets via environment / secret store (never commit them).
+3. Apply EF migrations out-of-band (`dotnet ef database update`) — API does **not** auto-migrate outside Development.
+4. Configure JWT, connection string, CORS, SMTP, MinIO, AllowedHosts.
+5. Hangfire dashboard and Swagger/Scalar are Development-only.
+6. HSTS is enabled outside Development.
 
 ## User secrets (optional)
 

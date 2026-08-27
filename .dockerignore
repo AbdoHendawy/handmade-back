@@ -1,0 +1,12 @@
+.git
+.vs
+.idea
+**/bin/
+**/obj/
+**/TestResults/
+**/*.user
+**/.DS_Store
+.env
+**/node_modules/
+agent-transcripts/
+.cursor/

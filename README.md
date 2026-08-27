@@ -74,7 +74,7 @@ dotnet ef migrations add <Name> \
   --startup-project src/Handmade.Api \
   --output-dir Persistence/Migrations
 
-# Apply migrations
+# Apply migrations (required out-of-band for Production/Staging — API does not auto-migrate outside Development)
 dotnet ef database update \
   --project src/Handmade.Infrastructure \
   --startup-project src/Handmade.Api
@@ -86,10 +86,14 @@ There is no empty schema. Identity, Seller, Notifications, Catalog, Cart, and Or
 
 | Setting | Source |
 |---|---|
-| `ConnectionStrings__Default` | env / user secrets / appsettings |
+| `ConnectionStrings__Default` | env / user secrets (required; empty in base appsettings) |
+| `Jwt__SecretKey` | env / user secrets / secrets store |
 | `Cors__AllowedOrigins__0` | env / appsettings |
+| `AllowedHosts` | env (required outside Development; not `*`) |
+| `Email__*` | env (SMTP required outside Development) |
+| `FileStorage__*` | env (MinIO required outside Development) |
 
-Development defaults point at local Docker PostgreSQL (`handmade` / `handmade`). Do not commit real secrets. Use `.env` locally (gitignored) or `dotnet user-secrets`.
+Development defaults live in `appsettings.Development.json` (local Docker PostgreSQL / MinIO). Do not commit real secrets. Use `.env` locally (gitignored) or `dotnet user-secrets`. See [Docker/README.md](Docker/README.md) for the optional API image (`Dockerfile`, compose profile `api`).
 
 ## Project structure
 

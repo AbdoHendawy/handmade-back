@@ -17,6 +17,32 @@ public sealed class EmailOptionsTests
     }
 
     [Fact]
+    public void Console_AllowedInDevelopment()
+    {
+        new EmailOptions { Provider = "Console" }.EnsureAllowedForEnvironment(isDevelopment: true);
+    }
+
+    [Fact]
+    public void Console_RejectedOutsideDevelopment()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => new EmailOptions { Provider = "Console" }.EnsureAllowedForEnvironment(isDevelopment: false));
+    }
+
+    [Fact]
+    public void EmptyProvider_RejectedOutsideDevelopment()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => new EmailOptions().EnsureAllowedForEnvironment(isDevelopment: false));
+    }
+
+    [Fact]
+    public void Smtp_AllowedOutsideDevelopment_WhenValid()
+    {
+        ValidSmtp().EnsureAllowedForEnvironment(isDevelopment: false);
+    }
+
+    [Fact]
     public void Smtp_ValidSettings_Pass()
     {
         ValidSmtp().EnsureValidWhenSmtp();

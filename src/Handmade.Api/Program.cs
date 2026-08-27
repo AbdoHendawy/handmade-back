@@ -5,9 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+builder.Logging.AddHandmadeLogging(builder.Environment);
 
 builder.Services.AddHandmadeApi(builder.Configuration, builder.Environment);
 

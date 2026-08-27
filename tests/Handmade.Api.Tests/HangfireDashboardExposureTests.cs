@@ -58,8 +58,18 @@ public sealed class HangfireDashboardExposureTests
             builder.UseSetting("Jwt:Audience", "Handmade");
             builder.UseSetting("Hangfire:Enabled", "true");
             builder.UseSetting("AdminSeed:Enabled", "false");
-            builder.UseSetting("FileStorage:Provider", string.Empty);
-            builder.UseSetting("Email:Provider", "Console");
+            builder.UseSetting("AllowedHosts", "localhost");
+            builder.UseSetting("FileStorage:Provider", "MinIO");
+            builder.UseSetting("FileStorage:Endpoint", "localhost:9000");
+            builder.UseSetting("FileStorage:AccessKey", "test");
+            builder.UseSetting("FileStorage:SecretKey", "testtest");
+            builder.UseSetting("FileStorage:Bucket", "handmade");
+            builder.UseSetting("FileStorage:PublicBaseUrl", "http://localhost:9000/handmade");
+            builder.UseSetting("Email:Provider", "SMTP");
+            builder.UseSetting("Email:Host", "smtp.test.local");
+            builder.UseSetting("Email:Port", "587");
+            builder.UseSetting("Email:FromAddress", "noreply@test.local");
+            builder.UseSetting("RateLimiting:Enabled", "false");
         }
     }
 }

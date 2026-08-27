@@ -44,4 +44,23 @@ public sealed class FileStorageOptions
             throw new InvalidOperationException("FileStorage:PublicBaseUrl must be an absolute URL.");
         }
     }
+
+    /// <summary>
+    /// Outside Development, object storage must be configured (seller uploads).
+    /// </summary>
+    public void EnsureAllowedForEnvironment(bool isDevelopment)
+    {
+        if (isDevelopment)
+        {
+            return;
+        }
+
+        if (!IsMinio)
+        {
+            throw new InvalidOperationException(
+                "FileStorage:Provider must be MinIO outside Development. Configure FileStorage via environment variables.");
+        }
+
+        EnsureValidWhenEnabled();
+    }
 }

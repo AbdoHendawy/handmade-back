@@ -36,6 +36,46 @@ services:
       timeout: 5s
       retries: 10
 
+  # Optional API container (profile: api). Migrations are NOT applied on startup —
+  # run `dotnet ef database update` (or a migrate job) before serving traffic.
+  api:
+    profiles: ["api"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: handmade-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      AllowedHosts: ${AllowedHosts:-localhost}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-handmade};Username=${POSTGRES_USER:-handmade};Password=${POSTGRES_PASSWORD:-handmade}
+      Jwt__SecretKey: ${Jwt__SecretKey:-DEV_ONLY_COMPOSE_JWT_SECRET_KEY_32_CHARS_MIN}
+      Jwt__Issuer: ${Jwt__Issuer:-Handmade}
+      Jwt__Audience: ${Jwt__Audience:-Handmade}
+      Cors__AllowedOrigins__0: ${Cors__AllowedOrigins__0:-http://localhost:4200}
+      FileStorage__Provider: MinIO
+      FileStorage__Endpoint: minio:9000
+      FileStorage__UseSsl: "false"
+      FileStorage__AccessKey: ${MINIO_ROOT_USER:-minioadmin}
+      FileStorage__SecretKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      FileStorage__Bucket: handmade
+      FileStorage__PublicBaseUrl: ${FileStorage__PublicBaseUrl:-http://localhost:9000/handmade}
+      Email__Provider: ${Email__Provider:-SMTP}
+      Email__Host: ${Email__Host:-mailhog}
+      Email__Port: ${Email__Port:-1025}
+      Email__FromAddress: ${Email__FromAddress:-noreply@localhost.local}
+      Email__FromName: ${Email__FromName:-Handmade}
+      Email__EnableSsl: ${Email__EnableSsl:-false}
+      Hangfire__Enabled: ${Hangfire__Enabled:-true}
+      Hangfire__PrepareSchemaIfNecessary: ${Hangfire__PrepareSchemaIfNecessary:-true}
+
 volumes:
   handmade_pgdata:
   handmade_minio:

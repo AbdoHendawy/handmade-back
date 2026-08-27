@@ -1,8 +1,10 @@
+using Handmade.Api.Extensions;
 using Handmade.Application.Common;
 using Handmade.Application.Identity.DTOs;
 using Handmade.Application.Identity.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Handmade.Api.Controllers;
 
@@ -20,6 +22,7 @@ public sealed class AuthController : ControllerBase
     /// <summary>Register a new customer account with email and password.</summary>
     [HttpPost("register")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
     [ProducesResponseType(typeof(AuthenticationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthenticationResponse>> Register(
         [FromBody] RegisterRequest request,
@@ -35,6 +38,7 @@ public sealed class AuthController : ControllerBase
     /// <summary>Login with email and password.</summary>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
     [ProducesResponseType(typeof(AuthenticationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthenticationResponse>> Login(
         [FromBody] LoginRequest request,
@@ -50,6 +54,7 @@ public sealed class AuthController : ControllerBase
     /// <summary>Authenticate with a Google ID token from the SPA.</summary>
     [HttpPost("google")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
     [ProducesResponseType(typeof(AuthenticationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthenticationResponse>> Google(
         [FromBody] GoogleLoginRequest request,
@@ -65,6 +70,7 @@ public sealed class AuthController : ControllerBase
     /// <summary>Rotate refresh token and issue a new access token.</summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
     [ProducesResponseType(typeof(AuthenticationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthenticationResponse>> Refresh(
         [FromBody] RefreshTokenRequest request,

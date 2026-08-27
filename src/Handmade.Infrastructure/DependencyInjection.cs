@@ -18,6 +18,7 @@ using Handmade.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Handmade.Infrastructure;
 
@@ -25,7 +26,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.SectionName));
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
@@ -36,14 +38,19 @@ public static class DependencyInjection
 
         ValidateJwtSettings(configuration);
 
-        string connectionString = configuration.GetConnectionString(ApplicationConstants.DefaultConnectionStringName)
-            ?? throw new InvalidOperationException(
+        string? configuredConnection = configuration.GetConnectionString(ApplicationConstants.DefaultConnectionStringName);
+        if (string.IsNullOrWhiteSpace(configuredConnection))
+        {
+            throw new InvalidOperationException(
                 $"Connection string '{ApplicationConstants.DefaultConnectionStringName}' is not configured. Set ConnectionStrings__Default or ConnectionStrings:Default.");
+        }
+
+        string connectionString = configuredConnection;
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<AuditableInterceptor>();
-        AddFileStorage(services, configuration);
-        AddEmailSender(services, configuration);
+        AddFileStorage(services, configuration, environment);
+        AddEmailSender(services, configuration, environment);
         services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IExternalAuthProvider, GoogleIdTokenValidator>();
@@ -82,10 +89,14 @@ public static class DependencyInjection
         }
     }
 
-    private static void AddFileStorage(IServiceCollection services, IConfiguration configuration)
+    private static void AddFileStorage(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         FileStorageOptions storage = configuration.GetSection(FileStorageOptions.SectionName).Get<FileStorageOptions>()
             ?? new FileStorageOptions();
+        storage.EnsureAllowedForEnvironment(environment.IsDevelopment());
         storage.EnsureValidWhenEnabled();
 
         if (storage.IsMinio)
@@ -97,10 +108,14 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorage, NotConfiguredFileStorage>();
     }
 
-    private static void AddEmailSender(IServiceCollection services, IConfiguration configuration)
+    private static void AddEmailSender(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         EmailOptions email = configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>()
             ?? new EmailOptions();
+        email.EnsureAllowedForEnvironment(environment.IsDevelopment());
         email.EnsureValidWhenSmtp();
 
         if (email.IsSmtp)

@@ -53,7 +53,7 @@ URL path versioning. Breaking changes require `/api/v2`.
 | 403 | Forbidden |
 | 404 | Not found |
 | 409 | Conflict |
-| 429 | Rate limited (future) |
+| 429 | Rate limited (auth / public catalog) |
 | 500 | Unexpected |
 
 Errors use **RFC 7807 ProblemDetails** (`application/problem+json` style payload). No `{ success, data }` envelope.

@@ -54,6 +54,10 @@ dotnet ef migrations list \
   --startup-project src/Handmade.Api
 ```
 
+**Production / Staging:** apply migrations with `dotnet ef database update` (or a one-shot migrate job) **before** starting the API. The API calls `Database.MigrateAsync()` only in Development.
+
+Hangfire schema (`hangfire`) is separate from EF; controlled by `Hangfire:PrepareSchemaIfNecessary` (default `true`).
+
 ### Development reset
 
 ```bash

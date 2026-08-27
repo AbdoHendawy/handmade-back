@@ -1,15 +1,18 @@
+using Handmade.Api.Extensions;
 using Handmade.Application.Catalog;
 using Handmade.Application.Catalog.DTOs;
 using Handmade.Application.Catalog.Services;
 using Handmade.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Handmade.Api.Controllers;
 
 [ApiController]
 [Route(ApiRoutes.CatalogCategories)]
 [AllowAnonymous]
+[EnableRateLimiting(RateLimitingExtensions.CatalogPolicy)]
 public sealed class CatalogCategoriesController : ControllerBase
 {
     private readonly IPublicCatalogService _catalog;
@@ -31,6 +34,7 @@ public sealed class CatalogCategoriesController : ControllerBase
 [ApiController]
 [Route(ApiRoutes.CatalogProducts)]
 [AllowAnonymous]
+[EnableRateLimiting(RateLimitingExtensions.CatalogPolicy)]
 public sealed class CatalogProductsController : ControllerBase
 {
     private readonly IPublicCatalogService _catalog;

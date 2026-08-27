@@ -23,8 +23,10 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         IHostEnvironment environment)
     {
+        ValidateAllowedHosts(configuration, environment);
+
         services.AddApplication();
-        services.AddInfrastructure(configuration);
+        services.AddInfrastructure(configuration, environment);
 
         services.AddControllers()
             .AddJsonOptions(options =>
@@ -51,8 +53,31 @@ public static class ServiceCollectionExtensions
         services.AddHandmadeOpenApi();
         services.AddHandmadeAuthentication(configuration);
         services.AddHandmadeRealtime();
+        services.AddHandmadeRateLimiting(configuration);
+        services.AddHandmadeObservability();
+        services.AddHsts(options =>
+        {
+            options.MaxAge = TimeSpan.FromDays(365);
+            options.IncludeSubDomains = true;
+            options.Preload = false;
+        });
 
         return services;
+    }
+
+    private static void ValidateAllowedHosts(IConfiguration configuration, IHostEnvironment environment)
+    {
+        if (environment.IsDevelopment())
+        {
+            return;
+        }
+
+        string? allowedHosts = configuration["AllowedHosts"];
+        if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts.Trim() == "*")
+        {
+            throw new InvalidOperationException(
+                "AllowedHosts must be configured to specific host name(s) outside Development. Set AllowedHosts via environment variables (e.g. api.example.com).");
+        }
     }
 
     private static IServiceCollection AddHandmadeRealtime(this IServiceCollection services)
@@ -159,9 +184,17 @@ public static class ApplicationBuilderExtensions
     public static WebApplication UseHandmadePipeline(this WebApplication app)
     {
         app.UseExceptionHandler();
+        app.UseHandmadeObservability();
         app.UseMiddleware<SecurityHeadersMiddleware>();
+
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHsts();
+        }
+
         app.UseHttpsRedirection();
         app.UseCors(CorsOptions.DefaultPolicyName);
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseHandmadeHangfireDashboard(app.Environment);

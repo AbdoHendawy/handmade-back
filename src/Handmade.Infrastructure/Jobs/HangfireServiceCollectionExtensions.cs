@@ -27,9 +27,16 @@ public static class HangfireServiceCollectionExtensions
             return services;
         }
 
-        string connectionString = configuration.GetConnectionString(ApplicationConstants.DefaultConnectionStringName)
-            ?? throw new InvalidOperationException(
+        string? configuredConnection = configuration.GetConnectionString(ApplicationConstants.DefaultConnectionStringName);
+        if (string.IsNullOrWhiteSpace(configuredConnection))
+        {
+            throw new InvalidOperationException(
                 $"Connection string '{ApplicationConstants.DefaultConnectionStringName}' is required for Hangfire.");
+        }
+
+        bool prepareSchema = configuration.GetValue(
+            "Hangfire:PrepareSchemaIfNecessary",
+            defaultValue: true);
 
         services.AddHangfire(config =>
         {
@@ -38,11 +45,11 @@ public static class HangfireServiceCollectionExtensions
                 .UseRecommendedSerializerSettings()
                 .UseFilter(new AutomaticRetryAttribute { Attempts = 5 })
                 .UsePostgreSqlStorage(
-                    configure => configure.UseNpgsqlConnection(connectionString),
+                    configure => configure.UseNpgsqlConnection(configuredConnection),
                     new PostgreSqlStorageOptions
                     {
                         SchemaName = "hangfire",
-                        PrepareSchemaIfNecessary = true
+                        PrepareSchemaIfNecessary = prepareSchema
                     });
         });
 

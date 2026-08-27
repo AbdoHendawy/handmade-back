@@ -55,6 +55,7 @@ public class HandmadeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("AdminSeed:Email", SeededAdminEmail);
         builder.UseSetting("AdminSeed:Password", SeededAdminPassword);
         builder.UseSetting("FileStorage:Provider", string.Empty);
+        builder.UseSetting("RateLimiting:Enabled", "false");
 
         builder.ConfigureTestServices(services =>
         {

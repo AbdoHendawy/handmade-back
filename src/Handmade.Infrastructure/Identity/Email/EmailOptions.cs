@@ -66,6 +66,25 @@ public sealed class EmailOptions
         }
     }
 
+    /// <summary>
+    /// Outside Development, Console/empty provider is not allowed (ADR-016).
+    /// </summary>
+    public void EnsureAllowedForEnvironment(bool isDevelopment)
+    {
+        if (isDevelopment)
+        {
+            return;
+        }
+
+        if (IsConsole)
+        {
+            throw new InvalidOperationException(
+                "Email:Provider must be SMTP outside Development. Console email is Development-only.");
+        }
+
+        EnsureValidWhenSmtp();
+    }
+
     private static bool IsEmail(string email)
     {
         try

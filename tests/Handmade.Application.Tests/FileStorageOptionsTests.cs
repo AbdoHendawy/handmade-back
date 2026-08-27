@@ -31,6 +31,25 @@ public sealed class FileStorageOptionsTests
         ValidMinio().EnsureValidWhenEnabled();
     }
 
+    [Fact]
+    public void EmptyProvider_AllowedInDevelopment()
+    {
+        new FileStorageOptions().EnsureAllowedForEnvironment(isDevelopment: true);
+    }
+
+    [Fact]
+    public void EmptyProvider_RejectedOutsideDevelopment()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => new FileStorageOptions().EnsureAllowedForEnvironment(isDevelopment: false));
+    }
+
+    [Fact]
+    public void Minio_AllowedOutsideDevelopment_WhenValid()
+    {
+        ValidMinio().EnsureAllowedForEnvironment(isDevelopment: false);
+    }
+
     private static FileStorageOptions ValidMinio()
     {
         return new FileStorageOptions
