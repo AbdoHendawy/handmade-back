@@ -78,9 +78,12 @@ Partitioning is per client IP (`RemoteIpAddress` only). Forwarding headers such 
 ## Observability
 
 - Development: console + debug logging
-- Non-Development: JSON console logs with scopes
-- HTTP request logging (method/path/status/duration; bodies and auth headers not logged)
-- ProblemDetails `traceId` matches log scope `traceId`
+- Staging/Production: JSON console logs with scopes (`traceId` on each request)
+- HTTP request logging (method/path/query/status/duration; auth headers and bodies are not logged)
+- Correlate client errors with server logs using ProblemDetails `traceId` (same value appears in log scopes)
+- `/health` — process liveness; `/health/ready` — PostgreSQL readiness (safe for load balancers; responses must not contain secrets)
+- No external telemetry collector is required for local development or CI tests
+- Configure production log levels via environment (e.g. `Logging__LogLevel__Default=Information`); do not commit secrets to configuration files
 
 ## Health endpoints
 

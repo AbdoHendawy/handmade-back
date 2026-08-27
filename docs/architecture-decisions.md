@@ -89,7 +89,7 @@
 
 ## ADR-009: Logging — built-in abstractions
 
-**Decision:** Use `Microsoft.Extensions.Logging` only at call sites. Api composition root uses console/debug in Development and JSON console + `HttpLogging` (method/path/status/duration) outside Development. ProblemDetails `traceId` is mirrored into log scopes. No Serilog/OpenTelemetry packages yet.
+**Decision:** Use `Microsoft.Extensions.Logging` only at call sites. Api composition root uses console/debug in Development and JSON console + `HttpLogging` (method/path/status/duration) outside Development. ProblemDetails `traceId` is resolved via `RequestDiagnostics.GetTraceId` and mirrored into log scopes. No Serilog/OpenTelemetry packages yet.
 
 **Reason:** Sufficient for production-friendly container logs; Serilog/OTLP exporters can be added later without rewriting Application/Domain call sites.
 

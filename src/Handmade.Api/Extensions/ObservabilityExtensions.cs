@@ -1,3 +1,4 @@
+using Handmade.Api.Configuration;
 using Microsoft.AspNetCore.HttpLogging;
 
 namespace Handmade.Api.Extensions;
@@ -50,7 +51,7 @@ public static class ObservabilityExtensions
     {
         app.Use(async (context, next) =>
         {
-            string traceId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier;
+            string traceId = RequestDiagnostics.GetTraceId(context);
             using (app.Logger.BeginScope(new Dictionary<string, object>
             {
                 ["traceId"] = traceId

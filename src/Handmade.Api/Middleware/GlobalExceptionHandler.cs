@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using FluentValidation;
+using Handmade.Api.Configuration;
 using Handmade.Domain.Exceptions;
 using Handmade.Domain.Seller;
 using Microsoft.AspNetCore.Diagnostics;
@@ -28,23 +28,26 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         CancellationToken cancellationToken)
     {
         ProblemDetails problem = MapException(httpContext, exception);
+        string traceId = RequestDiagnostics.GetTraceId(httpContext);
 
         if (problem.Status >= StatusCodes.Status500InternalServerError)
         {
             _logger.LogError(
                 exception,
-                "Unhandled exception for {Method} {Path}",
+                "Unhandled exception for {Method} {Path} with {TraceId}",
                 httpContext.Request.Method,
-                httpContext.Request.Path);
+                httpContext.Request.Path,
+                traceId);
         }
         else
         {
             _logger.LogWarning(
                 exception,
-                "Handled exception {StatusCode} for {Method} {Path}",
+                "Handled exception {StatusCode} for {Method} {Path} with {TraceId}",
                 problem.Status,
                 httpContext.Request.Method,
-                httpContext.Request.Path);
+                httpContext.Request.Path,
+                traceId);
         }
 
         httpContext.Response.StatusCode = problem.Status ?? StatusCodes.Status500InternalServerError;
@@ -54,7 +57,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
     private ProblemDetails MapException(HttpContext httpContext, Exception exception)
     {
-        string traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
+        string traceId = RequestDiagnostics.GetTraceId(httpContext);
 
         ProblemDetails problem = exception switch
         {
