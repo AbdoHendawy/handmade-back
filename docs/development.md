@@ -98,6 +98,7 @@ Partitioning is per client IP (`RemoteIpAddress` only). Forwarding headers such 
 4. Configure JWT, non-local connection string, CORS origins, SMTP, MinIO, AllowedHosts (see fail-safes above).
 5. Hangfire dashboard and Swagger/Scalar are Development-only.
 6. HSTS is enabled outside Development.
+7. For AWS EC2 Docker deployment steps, security group guidance, and the full environment-variable matrix, see [Docker/README.md](../Docker/README.md#aws-ec2-production-deployment).
 
 ## CI
 
