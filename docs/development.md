@@ -99,6 +99,15 @@ Partitioning is per client IP (`RemoteIpAddress` only). Forwarding headers such 
 5. Hangfire dashboard and Swagger/Scalar are Development-only.
 6. HSTS is enabled outside Development.
 
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on push and pull requests to `main`/`master`:
+
+- Release build and full test suite (Domain, Application, Architecture, Api, then solution)
+- Docker must be available on the runner for Testcontainers (PostgreSQL and MinIO integration tests)
+- Validates `docker build` against the repo-root `Dockerfile`
+- No GitHub secrets are required for the test suite
+
 ## User secrets (optional)
 
 ```bash
