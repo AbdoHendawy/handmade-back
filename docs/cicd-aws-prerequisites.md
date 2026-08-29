@@ -59,16 +59,27 @@ Scope ECR permissions to the `handmade-api` repository ARN when possible.
 }
 ```
 
-- [ ] Attach policies to that role:
+- [ ] Attach the least-privilege permissions policy from [`infra/iam/github-actions-handmade-deploy-policy.json`](../infra/iam/github-actions-handmade-deploy-policy.json) to role `GitHubActionsHandmadeDeploy`.
 
-| Permission | Purpose |
-|------------|---------|
-| `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, `ecr:PutImage`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload` | Push image from Actions |
-| `ssm:SendCommand` | Run deploy script on EC2 |
-| `ssm:GetCommandInvocation` | Wait for deploy result |
-| `ssm:ListCommandInvocations` | Optional debugging |
+  Apply in AWS (replace only if your ECR repository name differs from `handmade-api`):
 
-Restrict `ssm:SendCommand` to the target instance ID and document `AWS-RunShellScript`.
+  ```bash
+  aws iam put-role-policy \
+    --role-name GitHubActionsHandmadeDeploy \
+    --policy-name HandmadeGitHubActionsDeploy \
+    --policy-document file://infra/iam/github-actions-handmade-deploy-policy.json
+  ```
+
+  Permissions summary (see JSON for scoped ARNs):
+
+  | Permission | Purpose |
+  |------------|---------|
+  | `ecr:GetAuthorizationToken` | Docker login from Actions (`amazon-ecr-login`) |
+  | `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage` | `docker push` to ECR |
+  | `ssm:SendCommand` | Run `AWS-RunShellScript` on the deploy EC2 instance |
+  | `ssm:GetCommandInvocation` | Poll deploy command status and read output |
+
+  `ssm:SendCommand` is scoped to instance `i-0e1870527f4f68a2c` and document `AWS-RunShellScript`. `ecr:GetAuthorizationToken` and `ssm:GetCommandInvocation` require `Resource: "*"` per AWS IAM.
 
 ## 5. GitHub repository configuration
 
@@ -76,7 +87,7 @@ Add **repository variables** (Settings → Secrets and variables → Actions →
 
 | Variable | Example | Purpose |
 |----------|---------|---------|
-| `AWS_REGION` | `eu-west-1` | ECR and SSM region |
+| `AWS_REGION` | `eu-north-1` | ECR and SSM region |
 | `ECR_REPOSITORY` | `handmade-api` | ECR repo name (not full URI) |
 | `EC2_INSTANCE_ID` | `i-0abc123def456` | Deploy target |
 | `EC2_DEPLOY_DIR` | `/home/ec2-user/handmade-back` | Path to clone on EC2 |
