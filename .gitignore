@@ -85,6 +85,7 @@ ehthumbs.db
 
 ## Docker
 docker-data/
+.deploy/
 
 ## NuGet
 *.nupkg

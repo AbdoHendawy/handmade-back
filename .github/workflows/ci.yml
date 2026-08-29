@@ -1,9 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches: [main, master]
   pull_request:
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -31,19 +30,7 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Test Domain
-        run: dotnet test tests/Handmade.Domain.Tests --no-build --configuration Release --verbosity normal
-
-      - name: Test Application
-        run: dotnet test tests/Handmade.Application.Tests --no-build --configuration Release --verbosity normal
-
-      - name: Test Architecture
-        run: dotnet test tests/Handmade.Architecture.Tests --no-build --configuration Release --verbosity normal
-
-      - name: Test Api
-        run: dotnet test tests/Handmade.Api.Tests --no-build --configuration Release --verbosity normal
-
-      - name: Test solution
+      - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       - name: Docker build

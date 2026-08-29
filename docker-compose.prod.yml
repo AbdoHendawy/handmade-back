@@ -1,0 +1,48 @@
+# Production overlay for EC2 deploys.
+# Requires API_IMAGE (full ECR URI including tag) and a .env file on the host.
+#
+#   export API_IMAGE=123456789012.dkr.ecr.eu-west-1.amazonaws.com/handmade-api:abc1234
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile api pull api
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile api up -d --no-deps api
+#
+# Overrides every api environment key from docker-compose.yml so development
+# defaults cannot leak. Required values are read from EC2 .env (no dev fallbacks).
+# Secrets are never hardcoded in this file.
+
+services:
+  api:
+    image: ${API_IMAGE:?Set API_IMAGE to the full ECR image URI including tag}
+    pull_policy: always
+    build: !reset null
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      AllowedHosts: ${AllowedHosts:?Set AllowedHosts in .env}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:?Set POSTGRES_DB in .env};Username=${POSTGRES_USER:?Set POSTGRES_USER in .env};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      Jwt__SecretKey: ${Jwt__SecretKey:?Set Jwt__SecretKey in .env}
+      Jwt__Issuer: ${Jwt__Issuer:?Set Jwt__Issuer in .env}
+      Jwt__Audience: ${Jwt__Audience:?Set Jwt__Audience in .env}
+      Cors__AllowedOrigins__0: ${Cors__AllowedOrigins__0:?Set Cors__AllowedOrigins__0 in .env}
+      FileStorage__Provider: MinIO
+      FileStorage__Endpoint: ${FileStorage__Endpoint:?Set FileStorage__Endpoint in .env}
+      FileStorage__UseSsl: ${FileStorage__UseSsl:?Set FileStorage__UseSsl in .env}
+      FileStorage__AccessKey: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      FileStorage__SecretKey: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      FileStorage__Bucket: ${FileStorage__Bucket:?Set FileStorage__Bucket in .env}
+      FileStorage__PublicBaseUrl: ${FileStorage__PublicBaseUrl:?Set FileStorage__PublicBaseUrl in .env}
+      Email__Provider: SMTP
+      Email__Host: ${Email__Host:?Set Email__Host in .env}
+      Email__Port: ${Email__Port:?Set Email__Port in .env}
+      Email__Username: ${Email__Username:-}
+      Email__Password: ${Email__Password:-}
+      Email__FromAddress: ${Email__FromAddress:?Set Email__FromAddress in .env}
+      Email__FromName: ${Email__FromName:?Set Email__FromName in .env}
+      Email__EnableSsl: ${Email__EnableSsl:?Set Email__EnableSsl in .env}
+      RateLimiting__Enabled: ${RateLimiting__Enabled:?Set RateLimiting__Enabled in .env}
+      RateLimiting__Auth__PermitLimit: ${RateLimiting__Auth__PermitLimit:?Set RateLimiting__Auth__PermitLimit in .env}
+      RateLimiting__Auth__WindowSeconds: ${RateLimiting__Auth__WindowSeconds:?Set RateLimiting__Auth__WindowSeconds in .env}
+      RateLimiting__Catalog__PermitLimit: ${RateLimiting__Catalog__PermitLimit:?Set RateLimiting__Catalog__PermitLimit in .env}
+      RateLimiting__Catalog__WindowSeconds: ${RateLimiting__Catalog__WindowSeconds:?Set RateLimiting__Catalog__WindowSeconds in .env}
+      Hangfire__Enabled: ${Hangfire__Enabled:-true}
+      Hangfire__PrepareSchemaIfNecessary: ${Hangfire__PrepareSchemaIfNecessary:-true}

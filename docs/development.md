@@ -102,12 +102,14 @@ Partitioning is per client IP (`RemoteIpAddress` only). Forwarding headers such 
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on push and pull requests to `main`/`master`:
+GitHub Actions (`.github/workflows/ci.yml`) runs on pull requests to `main`/`master`:
 
-- Release build and full test suite (Domain, Application, Architecture, Api, then solution)
+- Release build and full test suite (solution `dotnet test`)
 - Docker must be available on the runner for Testcontainers (PostgreSQL and MinIO integration tests)
 - Validates `docker build` against the repo-root `Dockerfile`
 - No GitHub secrets are required for the test suite
+
+Production deploys run via `.github/workflows/deploy.yml` on push to `main` after AWS prerequisites are configured — see [cicd-aws-prerequisites.md](cicd-aws-prerequisites.md) and [Docker/README.md](../Docker/README.md#automated-production-deploy-cicd).
 
 ## User secrets (optional)
 

@@ -130,15 +130,19 @@ Do not commit real secrets. Use environment variables or a secrets manager.
 
 ## AWS EC2 production deployment
 
-This section documents how to run the Handmade API on an **Amazon Linux 2023** EC2 instance prepared separately. This phase does **not** add automatic deployment workflows or commit secrets to the repository.
+This section documents how to run the Handmade API on an **Amazon Linux 2023** EC2 instance with **Docker Compose**. Production configuration (`.env`) stays on the host and is never committed.
+
+For first-time AWS/GitHub setup before enabling automated deploys, see [docs/cicd-aws-prerequisites.md](../docs/cicd-aws-prerequisites.md).
 
 ### EC2 prerequisites
 
 - Amazon Linux 2023
-- Docker installed and running
-- Git installed
-- Access via **EC2 Instance Connect** or SSH
-- The application container listens on port **8080** internally (`ASPNETCORE_URLS=http://+:8080`)
+- Docker and **Docker Compose v2** installed and running
+- Git installed; repository cloned on the host
+- **SSM Agent** running (for GitHub Actions deploy via Run Command)
+- Production `.env` in the repository directory on EC2
+- Nginx on port **80** proxying to `127.0.0.1:8080`
+- API container name: `handmade-api`, internal port **8080**
 
 ### Security group (recommended)
 
@@ -158,12 +162,12 @@ The API process binds to **8080** inside the container. Map host port `8080:8080
 
 ### Configuration strategy
 
-Supply production configuration externally:
+Supply production configuration from the EC2 host `.env` file:
 
 ```text
-EC2 environment / secret manager
+EC2 .env (not committed)
         ↓
-docker run -e … (container environment)
+docker compose env_file + interpolation
         ↓
 ASP.NET Core configuration
 ```
@@ -177,7 +181,7 @@ production.env
 *.secret
 ```
 
-The repository `.env.example` is documentation only.
+The repository `.env.example` is documentation only. Automated deploys **do not** modify or upload `.env`.
 
 ### Complete production configuration matrix
 
@@ -274,9 +278,67 @@ dotnet ef database update \
 
 Use a connection string with permission to apply migrations. Starting the API container does **not** replace this step.
 
-### Production deployment sequence (EC2)
+### Automated production deploy (CI/CD)
 
-Run on the EC2 host after cloning the repository. Replace every `<PLACEHOLDER>` with values from your environment or secret manager — **do not** commit real credentials.
+After [AWS prerequisites](../docs/cicd-aws-prerequisites.md) are configured:
+
+| Workflow | Trigger | Action |
+|----------|---------|--------|
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Pull request to `main` | restore → build → test → `docker build` validate |
+| [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | Push to `main` | CI steps → push image to **ECR** (`{git-sha}` tag) → **SSM** runs `scripts/deploy-api.sh` on EC2 |
+
+Deploy flow on EC2 (API only — Postgres and MinIO unchanged):
+
+```bash
+export API_IMAGE=<account>.dkr.ecr.<region>.amazonaws.com/handmade-api:<git-sha>
+./scripts/deploy-api.sh
+```
+
+The script:
+
+1. Logs in to ECR (when `API_IMAGE` is an ECR URI)
+2. `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile api pull api`
+3. `docker compose ... up -d --no-deps api`
+4. Waits for `GET /health` (default `http://127.0.0.1:8080/health`)
+5. On failure, rolls back to the previous image recorded in `.deploy/previous-api-image`
+
+Image tags use the Git commit SHA — **not** `latest`.
+
+### Manual production deploy (Compose)
+
+Use when debugging or before CI/CD is enabled. Requires `API_IMAGE` or a locally built tag.
+
+```bash
+cd /path/to/handmade-back
+git pull
+
+# Option A — image already in ECR
+export API_IMAGE=<account>.dkr.ecr.<region>.amazonaws.com/handmade-api:<tag>
+./scripts/deploy-api.sh
+
+# Option B — build on host (not recommended for routine production)
+docker build -t handmade-api:release .
+export API_IMAGE=handmade-api:release
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile api up -d --no-deps api
+curl -fsS http://127.0.0.1:8080/health
+```
+
+Verify after deploy:
+
+```bash
+docker logs handmade-api
+docker exec handmade-api id -u    # expect 1654 (non-root $APP_UID)
+curl -fsS http://127.0.0.1:8080/health
+```
+
+Configure HTTP probes against `/health` (liveness) and optionally `/health/ready` (PostgreSQL readiness). The image has no `curl`/`wget` and no Dockerfile `HEALTHCHECK`.
+
+### Legacy manual deploy (`docker run`)
+
+The following `docker run` sequence remains valid for emergencies but is superseded by Compose + `scripts/deploy-api.sh` for routine deploys:
+
+<details>
+<summary>docker run (legacy)</summary>
 
 ```bash
 git pull
@@ -319,14 +381,7 @@ docker run -d \
   handmade-api:release
 ```
 
-Verify the container after deploy:
-
-```bash
-docker logs handmade-api
-docker exec handmade-api id -u    # expect 1654 (non-root $APP_UID)
-```
-
-Configure HTTP probes against `/health` (liveness) and optionally `/health/ready` (PostgreSQL readiness). The image has no `curl`/`wget` and no Dockerfile `HEALTHCHECK`.
+</details>
 
 ### Production logging
 

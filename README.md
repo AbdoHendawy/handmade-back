@@ -93,7 +93,7 @@ There is no empty schema. Identity, Seller, Notifications, Catalog, Cart, and Or
 | `Email__*` | env (SMTP required outside Development) |
 | `FileStorage__*` | env (MinIO required outside Development) |
 
-Development defaults live in `appsettings.Development.json` (local Docker PostgreSQL / MinIO). Do not commit real secrets. Use `.env` locally (gitignored) or `dotnet user-secrets`. See [Docker/README.md](Docker/README.md) for the optional API image (`Dockerfile`, compose profile `api`).
+Development defaults live in `appsettings.Development.json` (local Docker PostgreSQL / MinIO). Do not commit real secrets. Use `.env` locally (gitignored) or `dotnet user-secrets`. See [Docker/README.md](Docker/README.md) for the optional API image (`Dockerfile`, compose profile `api`) and [docs/cicd-aws-prerequisites.md](docs/cicd-aws-prerequisites.md) for production CI/CD setup.
 
 ## Project structure
 
