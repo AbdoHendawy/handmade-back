@@ -59,8 +59,23 @@ jobs:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
           IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-          docker build -t "$IMAGE_URI" .
-          docker push "$IMAGE_URI"
+
+          if aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            >/dev/null 2>&1; then
+
+            echo "Image already exists: $IMAGE_URI"
+            echo "Using existing immutable image."
+
+          else
+
+            echo "Image does not exist. Building and pushing..."
+            docker build -t "$IMAGE_URI" .
+            docker push "$IMAGE_URI"
+
+          fi
+
           echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
 
       - name: Deploy to EC2 via SSM
