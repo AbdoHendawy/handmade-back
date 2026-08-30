@@ -114,7 +114,7 @@ jobs:
             HEALTH_EXPORT="export HEALTH_URL='${HEALTH_URL}' && "
           fi
 
-          REMOTE_CMD="set -euo pipefail && cd '${EC2_DEPLOY_DIR}' && git fetch origin main && git checkout main && git pull --ff-only origin main && chmod +x scripts/deploy-api.sh && export API_IMAGE='${IMAGE_URI}' AWS_REGION='${AWS_REGION}' && ${HEALTH_EXPORT}./scripts/deploy-api.sh"
+          REMOTE_CMD="set -euo pipefail && cd '${EC2_DEPLOY_DIR}' && git config --global --add safe.directory '${EC2_DEPLOY_DIR}' && git fetch origin main && git checkout main && git pull --ff-only origin main && chmod +x scripts/deploy-api.sh && export API_IMAGE='${IMAGE_URI}' AWS_REGION='${AWS_REGION}' && ${HEALTH_EXPORT}./scripts/deploy-api.sh"
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE_ID" \
