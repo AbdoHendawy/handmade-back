@@ -58,21 +58,40 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
+          set -euo pipefail
           IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          describe_err="$(mktemp)"
+          trap 'rm -f "$describe_err"' EXIT
 
           if aws ecr describe-images \
             --repository-name "$ECR_REPOSITORY" \
             --image-ids imageTag="$IMAGE_TAG" \
-            >/dev/null 2>&1; then
+            >/dev/null 2>"$describe_err"; then
 
             echo "Image already exists: $IMAGE_URI"
             echo "Using existing immutable image."
 
-          else
+          elif grep -qE 'ImageNotFoundException|does not exist within the repository' "$describe_err"; then
 
             echo "Image does not exist. Building and pushing..."
             docker build -t "$IMAGE_URI" .
-            docker push "$IMAGE_URI"
+            if ! push_out="$(docker push "$IMAGE_URI" 2>&1)"; then
+              echo "$push_out"
+              if echo "$push_out" | grep -q "tag is immutable"; then
+                echo "Immutable tag already exists. Reusing: $IMAGE_URI"
+              else
+                exit 1
+              fi
+            else
+              echo "$push_out"
+            fi
+
+          else
+
+            echo "::error::Failed to check whether image tag exists in ECR"
+            cat "$describe_err"
+            exit 1
 
           fi
 
